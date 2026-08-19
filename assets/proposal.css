@@ -1,0 +1,348 @@
+/**
+ * Customer-facing proposal page.
+ *
+ * Standalone rather than part of the app bundle: this page is served to homeowners who never load
+ * the technician app, and it must render with no JavaScript. Hand-written CSS with no build step for
+ * the same reason — one file, one request, no toolchain between it and the customer.
+ *
+ * Mobile-first, then a print block at the end. The print path is not decoration: "web page plus
+ * browser print-to-PDF" is how this plugin produces a PDF at all, so the print rules are load-bearing.
+ */
+
+:root {
+	--pp-ink: #1d2d35;
+	--pp-muted: #6b7c85;
+	--pp-line: #e3e9ec;
+	--pp-brand: #12455f;
+	--pp-immediate: #c0392b;
+	--pp-recommended: #c88a1a;
+	--pp-optional: #2a7ab0;
+	--pp-bg: #f4f6f7;
+}
+
+* { box-sizing: border-box; }
+
+body.pp {
+	margin: 0;
+	background: var(--pp-bg);
+	color: var(--pp-ink);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	line-height: 1.55;
+	-webkit-text-size-adjust: 100%;
+}
+
+/* ------------------------------------------------------------------ header. */
+
+.pp-head {
+	background: var(--pp-brand);
+	color: #fff;
+}
+
+.pp-head__inner {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 14px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.pp-logo { max-height: 40px; width: auto; display: block; }
+
+.pp-wordmark { font-weight: 700; font-size: 18px; letter-spacing: 0.01em; }
+
+.pp-print {
+	background: rgba(255, 255, 255, 0.14);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	color: #fff;
+	border-radius: 6px;
+	padding: 8px 14px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.pp-print:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* -------------------------------------------------------------------- body. */
+
+.pp-wrap {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 20px 20px 64px;
+}
+
+.pp-intro h1 {
+	font-size: 26px;
+	line-height: 1.2;
+	margin: 8px 0 16px;
+}
+
+.pp-meta {
+	margin: 0 0 20px;
+	padding: 16px;
+	background: #fff;
+	border: 1px solid var(--pp-line);
+	border-radius: 8px;
+	display: grid;
+	gap: 10px;
+}
+
+.pp-meta > div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
+.pp-meta dt { color: var(--pp-muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+.pp-meta dd { margin: 0; }
+
+.pp-lede { margin: 0 0 28px; font-size: 17px; }
+
+/* ------------------------------------------------------------------ groups. */
+
+.pp-group {
+	background: #fff;
+	border: 1px solid var(--pp-line);
+	border-radius: 8px;
+	padding: 18px 18px 6px;
+	margin: 0 0 18px;
+}
+
+.pp-group__title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 18px;
+	margin: 0 0 4px;
+}
+
+/* The coloured dot carries the same red/yellow/blue coding as the review screen, but the label is
+   always spelled out beside it — colour alone would fail anyone who cannot distinguish these, and
+   this is the document that tells somebody their house has a hazard. */
+.pp-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--pp-muted);
+}
+
+.pp-group--immediate .pp-dot { background: var(--pp-immediate); }
+.pp-group--recommended .pp-dot { background: var(--pp-recommended); }
+.pp-group--optional .pp-dot { background: var(--pp-optional); }
+
+.pp-count {
+	margin-left: auto;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--pp-muted);
+	background: var(--pp-bg);
+	border-radius: 999px;
+	padding: 2px 10px;
+}
+
+.pp-group__note {
+	margin: 4px 0 0;
+	color: var(--pp-immediate);
+	font-size: 14px;
+}
+
+.pp-list { margin: 12px 0 0; padding: 0 0 0 22px; }
+.pp-list__item { margin: 0 0 12px; }
+
+/* ----------------------------------------------------------------- gallery. */
+
+.pp-gallery {
+	background: #fff;
+	border: 1px solid var(--pp-line);
+	border-radius: 8px;
+	padding: 18px;
+	margin: 0 0 18px;
+}
+
+.pp-gallery__grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+	margin-top: 14px;
+}
+
+@media (min-width: 560px) {
+	.pp-gallery__grid { grid-template-columns: 1fr 1fr; }
+}
+
+.pp-shot { margin: 0; }
+
+.pp-shot img {
+	width: 100%;
+	height: auto;
+	border-radius: 6px;
+	display: block;
+	background: var(--pp-bg);
+}
+
+.pp-shot figcaption {
+	margin-top: 8px;
+	font-size: 14px;
+	color: var(--pp-muted);
+}
+
+/* ---------------------------------------------------------------- sign-off. */
+
+.pp-signoff {
+	background: #fff;
+	border: 2px solid var(--pp-brand);
+	border-radius: 8px;
+	padding: 18px;
+	margin: 28px 0 18px;
+}
+
+.pp-terms {
+	font-size: 14px;
+	color: var(--pp-muted);
+	margin: 12px 0 18px;
+}
+
+.pp-field { display: block; margin: 0 0 16px; }
+
+.pp-field > span,
+.pp-field__label {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.pp-field input[type="text"],
+.pp-field textarea {
+	width: 100%;
+	/* 16px minimum: anything smaller makes iOS Safari zoom the viewport on focus, which on this page
+	   throws the customer into a half-scrolled layout mid-signature. */
+	font-size: 16px;
+	font-family: inherit;
+	padding: 12px;
+	border: 1px solid #b9c6cd;
+	border-radius: 6px;
+	background: #fff;
+	color: inherit;
+}
+
+.pp-pad { margin: 0 0 16px; }
+
+.pp-pad__canvas {
+	width: 100%;
+	height: 180px;
+	border: 1px dashed #b9c6cd;
+	border-radius: 6px;
+	background: #fff;
+	display: block;
+	/* Without this the first stroke scrolls the page instead of drawing. */
+	touch-action: none;
+	cursor: crosshair;
+}
+
+.pp-pad.is-missing .pp-pad__canvas {
+	border-color: var(--pp-immediate);
+	border-style: solid;
+}
+
+.pp-clear {
+	margin-top: 8px;
+	background: none;
+	border: 0;
+	color: var(--pp-brand);
+	font-size: 14px;
+	text-decoration: underline;
+	cursor: pointer;
+	padding: 4px 0;
+}
+
+.pp-btn {
+	display: inline-block;
+	width: 100%;
+	padding: 15px 20px;
+	font-size: 16px;
+	font-weight: 600;
+	font-family: inherit;
+	border-radius: 6px;
+	border: 1px solid var(--pp-brand);
+	background: #fff;
+	color: var(--pp-brand);
+	cursor: pointer;
+}
+
+.pp-btn--primary { background: var(--pp-brand); color: #fff; }
+
+.pp-form--decline { margin-top: 18px; }
+.pp-form--decline summary { color: var(--pp-muted); font-size: 14px; cursor: pointer; padding: 6px 0; }
+.pp-form--decline .pp-btn { margin-top: 4px; }
+
+.pp-signed { text-align: center; padding: 10px 0; }
+.pp-signed__by { font-weight: 600; margin: 0 0 10px; }
+.pp-signed__mark { max-width: 260px; height: auto; display: block; margin: 0 auto; }
+
+/* ------------------------------------------------------------------ flash. */
+
+.pp-flash {
+	padding: 14px 16px;
+	border-radius: 8px;
+	background: #fff;
+	border-left: 4px solid var(--pp-muted);
+	margin: 0 0 20px;
+}
+
+.pp-flash--ok { border-left-color: #2e7d4f; background: #f0f8f3; }
+.pp-flash--bad { border-left-color: var(--pp-immediate); background: #fdf2f2; }
+
+/* ----------------------------------------------------------------- footer. */
+
+.pp-foot {
+	margin-top: 32px;
+	padding-top: 18px;
+	border-top: 1px solid var(--pp-line);
+	color: var(--pp-muted);
+	font-size: 13px;
+}
+
+.pp-disclaimer { margin: 0 0 12px; }
+.pp-company { margin: 0 0 4px; }
+
+/* ------------------------------------------------------------------ print. */
+
+@media print {
+	/* The customer prints this to keep or to hand to somebody else, so the interactive furniture goes
+	   and the content reflows to paper. Backgrounds are forced on for the priority dots — without
+	   print-color-adjust most browsers drop them, and the colour coding is half the document. */
+	:root { --pp-bg: #fff; }
+
+	body.pp { background: #fff; font-size: 11pt; }
+
+	.pp-print,
+	.pp-form,
+	.pp-clear,
+	.pp-pad { display: none !important; }
+
+	.pp-head { background: #fff; color: var(--pp-ink); border-bottom: 2px solid var(--pp-brand); }
+	.pp-head__inner, .pp-wrap { max-width: none; padding: 0 0 12px; }
+
+	.pp-wrap { padding-top: 12px; }
+
+	.pp-group,
+	.pp-gallery,
+	.pp-signoff,
+	.pp-meta {
+		border: 1px solid #ccc;
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+
+	.pp-signoff { border-width: 1px; }
+
+	.pp-dot {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.pp-gallery__grid { grid-template-columns: 1fr 1fr; }
+
+	.pp-shot img { max-height: 2.5in; object-fit: cover; }
+
+	a[href]::after { content: ""; }
+}

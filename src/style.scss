@@ -1,0 +1,1006 @@
+/**
+ * Technician app styles.
+ *
+ * Mobile-first and touch-first. Every control is at least 44px tall because this is used one-handed,
+ * on a phone, often with a glove on, in a garage with bad light. Desktop is the progressive
+ * enhancement here, not the other way round.
+ */
+
+:root {
+	--pe-bg: #f4f6f8;
+	--pe-surface: #fff;
+	--pe-ink: #16232c;
+	--pe-muted: #5c6b76;
+	--pe-line: #d7dee4;
+	--pe-brand: #0b3d5c;
+	--pe-brand-ink: #fff;
+	--pe-pass: #1c7c4a;
+	--pe-fail: #b3261e;
+	--pe-na: #6b7780;
+	--pe-immediate: #b3261e;
+	--pe-recommended: #b26a00;
+	--pe-optional: #0b5cad;
+	--pe-radius: 10px;
+	--pe-gap: 16px;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body.pe-survey-body {
+	margin: 0;
+	background: var(--pe-bg);
+	color: var(--pe-ink);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 16px; // Never below 16px: iOS zooms the viewport on focus otherwise.
+	line-height: 1.45;
+	-webkit-text-size-adjust: 100%;
+}
+
+.pe-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.pe-muted { color: var(--pe-muted); }
+.pe-error { color: var(--pe-fail); }
+
+/* ------------------------------------------------------------------ shell. */
+
+.pe-topbar {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pe-gap);
+	padding: 12px 16px;
+	padding-top: calc(12px + env(safe-area-inset-top));
+	background: var(--pe-brand);
+	color: var(--pe-brand-ink);
+
+	&__brand {
+		background: none;
+		border: 0;
+		color: inherit;
+		font-size: 17px;
+		font-weight: 600;
+		padding: 6px 0;
+		cursor: pointer;
+	}
+
+	&__user {
+		font-size: 14px;
+		opacity: 0.85;
+	}
+}
+
+.pe-main {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: var(--pe-gap);
+	padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+.pe-state {
+	padding: 48px 24px;
+	text-align: center;
+	color: var(--pe-muted);
+}
+
+.pe-spinner {
+	display: inline-block;
+	width: 28px;
+	height: 28px;
+	border: 3px solid var(--pe-line);
+	border-top-color: var(--pe-brand);
+	border-radius: 50%;
+	animation: pe-spin 0.8s linear infinite;
+}
+
+@keyframes pe-spin {
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pe-spinner { animation-duration: 3s; }
+}
+
+/* ----------------------------------------------------------------- buttons. */
+
+.pe-btn {
+	min-height: 44px;
+	padding: 10px 16px;
+	border: 1px solid var(--pe-line);
+	border-radius: var(--pe-radius);
+	background: var(--pe-surface);
+	color: var(--pe-ink);
+	font-size: 15px;
+	font-weight: 500;
+	cursor: pointer;
+
+	&:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
+	&--primary {
+		background: var(--pe-brand);
+		border-color: var(--pe-brand);
+		color: var(--pe-brand-ink);
+	}
+
+	&--block {
+		display: block;
+		width: 100%;
+		margin-top: var(--pe-gap);
+	}
+
+	&--danger-quiet {
+		color: var(--pe-fail);
+		border-color: transparent;
+		background: none;
+	}
+}
+
+/* -------------------------------------------------------------------- list. */
+
+.pe-list__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pe-gap);
+	margin-bottom: var(--pe-gap);
+
+	h1 { font-size: 20px; margin: 0; }
+}
+
+.pe-cards {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 10px;
+}
+
+.pe-card {
+	display: grid;
+	gap: 4px;
+	width: 100%;
+	padding: 14px;
+	text-align: left;
+	background: var(--pe-surface);
+	border: 1px solid var(--pe-line);
+	border-radius: var(--pe-radius);
+	cursor: pointer;
+
+	&__title { font-weight: 600; }
+	&__sub,
+	&__author { font-size: 13px; color: var(--pe-muted); }
+	&__sub { white-space: pre-line; }
+
+	&__meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		margin-top: 4px;
+	}
+}
+
+.pe-pill {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	background: #e8edf1;
+	color: var(--pe-muted);
+
+	&.is-pending { background: #fff3d6; color: #8a5a00; }
+	&.is-changes { background: #ffe2df; color: #97231c; }
+	&.is-accepted { background: #dcf2e5; color: #10603a; }
+	&.is-dirty { background: #ede0ff; color: #5b2ea6; }
+}
+
+.pe-findings {
+	display: inline-flex;
+	gap: 4px;
+
+	&__item {
+		min-width: 22px;
+		padding: 2px 6px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 700;
+		color: #fff;
+		text-align: center;
+
+		&.is-immediate { background: var(--pe-immediate); }
+		&.is-recommended { background: var(--pe-recommended); }
+		&.is-optional { background: var(--pe-optional); }
+	}
+}
+
+.pe-empty {
+	padding: 40px 16px;
+	text-align: center;
+	background: var(--pe-surface);
+	border: 1px dashed var(--pe-line);
+	border-radius: var(--pe-radius);
+}
+
+/* -------------------------------------------------------------------- form. */
+
+.pe-form__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--pe-gap);
+	margin-bottom: 12px;
+
+	h1 { font-size: 19px; margin: 0; }
+	p { margin: 2px 0 0; font-size: 13px; }
+}
+
+.pe-save {
+	flex: none;
+	font-size: 12px;
+	font-weight: 600;
+	padding: 4px 9px;
+	border-radius: 999px;
+	background: #e8edf1;
+	color: var(--pe-muted);
+
+	&.is-saved { background: #dcf2e5; color: #10603a; }
+	&.is-pending { background: #fff3d6; color: #8a5a00; }
+	&.is-offline { background: #e5eefc; color: #14457f; }
+	&.is-error { background: #ffe2df; color: #97231c; }
+}
+
+.pe-steps {
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	padding-bottom: 8px;
+	margin-bottom: var(--pe-gap);
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar { display: none; }
+
+	&__btn {
+		flex: none;
+		min-height: 38px;
+		padding: 8px 14px;
+		white-space: nowrap;
+		border: 1px solid var(--pe-line);
+		border-radius: 999px;
+		background: var(--pe-surface);
+		color: var(--pe-muted);
+		font-size: 14px;
+		cursor: pointer;
+
+		&.is-active {
+			background: var(--pe-brand);
+			border-color: var(--pe-brand);
+			color: var(--pe-brand-ink);
+		}
+	}
+}
+
+.pe-section {
+	background: var(--pe-surface);
+	border: 1px solid var(--pe-line);
+	border-radius: var(--pe-radius);
+	padding: var(--pe-gap);
+	margin-bottom: var(--pe-gap);
+
+	&__title { font-size: 16px; margin: 0 0 4px; }
+	&__hint { margin: 0 0 12px; font-size: 13px; color: var(--pe-muted); }
+}
+
+/* ------------------------------------------------------------------- items. */
+
+.pe-item {
+	padding: 12px 0;
+	border-top: 1px solid var(--pe-line);
+
+	&:first-of-type { border-top: 0; }
+
+	&.is-failed { background: #fffafa; }
+
+	&__label { margin: 0 0 8px; font-size: 15px; }
+
+	&__detail {
+		display: grid;
+		gap: 10px;
+		margin-top: 10px;
+		padding-left: 10px;
+		border-left: 3px solid var(--pe-fail);
+	}
+}
+
+.pe-choice {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+
+	&__btn {
+		min-height: 46px;
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+		background: var(--pe-surface);
+		color: var(--pe-muted);
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
+
+		&.is-active.is-pass { background: var(--pe-pass); border-color: var(--pe-pass); color: #fff; }
+		&.is-active.is-fail { background: var(--pe-fail); border-color: var(--pe-fail); color: #fff; }
+		&.is-active.is-na { background: var(--pe-na); border-color: var(--pe-na); color: #fff; }
+	}
+}
+
+.pe-check {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	font-size: 15px;
+	cursor: pointer;
+
+	input { width: 22px; height: 22px; }
+}
+
+/* ------------------------------------------------------------------ photos. */
+
+.pe-photos {
+	display: grid;
+	gap: 8px;
+
+	&__count { font-weight: 400; }
+
+	&__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 8px;
+	}
+
+	&__add {
+		justify-self: start;
+		border-style: dashed;
+		color: var(--pe-brand);
+	}
+}
+
+.pe-photo {
+	// On a phone the caption gets its own full-width row. Sharing a line with a 64px thumbnail and a
+	// touch-sized delete button leaves about twenty visible characters, which is not enough room to
+	// write "Corroded neutral bar in main panel" — and that sentence is what sells the repair.
+	display: grid;
+	align-items: center;
+	gap: 8px 10px;
+	grid-template-columns: 64px 1fr;
+	grid-template-areas:
+		"thumb  remove"
+		"caption caption";
+
+	@media (min-width: 480px) {
+		grid-template-columns: 64px 1fr 44px;
+		grid-template-areas: "thumb caption remove";
+	}
+
+	&__thumb {
+		grid-area: thumb;
+		width: 64px;
+		height: 64px;
+		object-fit: cover;
+		border-radius: 8px;
+		background: var(--pe-line);
+	}
+
+	&__caption {
+		grid-area: caption;
+		min-width: 0;
+		min-height: 44px;
+		padding: 10px 12px;
+		font: inherit;
+		font-size: 16px; // Below 16px iOS zooms the viewport on focus.
+		color: var(--pe-ink);
+		background: var(--pe-surface);
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+	}
+
+	&__remove {
+		grid-area: remove;
+		justify-self: end;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: var(--pe-radius);
+		background: none;
+		color: var(--pe-muted);
+		font-size: 22px;
+		line-height: 1;
+		cursor: pointer;
+	}
+
+	&__progress {
+		grid-area: caption;
+		height: 6px;
+		border-radius: 999px;
+		background: var(--pe-line);
+		overflow: hidden;
+	}
+
+	&__bar {
+		display: block;
+		height: 100%;
+		background: var(--pe-brand);
+		transition: width 0.2s linear;
+	}
+
+	&__retry {
+		grid-area: caption;
+		min-height: 44px;
+		padding: 8px 12px;
+		text-align: left;
+		border: 1px solid #e9a9a3;
+		border-radius: var(--pe-radius);
+		background: #ffe2df;
+		color: #97231c;
+		font: inherit;
+		font-size: 14px;
+		cursor: pointer;
+	}
+
+	// An upload in flight is dimmed so the settled photos above it read as done.
+	&.is-pending .pe-photo__thumb { opacity: 0.55; }
+	&.is-error .pe-photo__thumb { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pe-photo__bar { transition: none; }
+}
+
+/* ------------------------------------------------------------------ fields. */
+
+.pe-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: 1fr;
+
+	@media (min-width: 560px) {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.pe-field {
+	display: grid;
+	gap: 4px;
+
+	&--wide { grid-column: 1 / -1; }
+
+	&__label {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--pe-muted);
+	}
+
+	&__control {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	&__unit { font-size: 13px; color: var(--pe-muted); }
+
+	input,
+	select,
+	textarea {
+		width: 100%;
+		min-height: 44px;
+		padding: 10px 12px;
+		font: inherit;
+		font-size: 16px;
+		color: var(--pe-ink);
+		background: var(--pe-surface);
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+	}
+
+	textarea { resize: vertical; }
+
+	input:focus-visible,
+	select:focus-visible,
+	textarea:focus-visible {
+		outline: 2px solid var(--pe-brand);
+		outline-offset: 1px;
+	}
+}
+
+.pe-readings {
+	display: grid;
+	gap: 12px;
+	margin-top: 12px;
+	grid-template-columns: 1fr 1fr;
+}
+
+/* ------------------------------------------------------------------ panels. */
+
+.pe-panels__tabs {
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	margin-bottom: 12px;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar { display: none; }
+}
+
+.pe-tab {
+	flex: none;
+	min-height: 40px;
+	padding: 8px 14px;
+	white-space: nowrap;
+	border: 1px solid var(--pe-line);
+	border-radius: 999px;
+	background: var(--pe-surface);
+	font-size: 14px;
+	cursor: pointer;
+
+	&.is-active { background: var(--pe-brand); border-color: var(--pe-brand); color: #fff; }
+	&--add { border-style: dashed; color: var(--pe-brand); }
+}
+
+/* ----------------------------------------------------------------- banners. */
+
+.pe-banner {
+	padding: 12px 14px;
+	border-radius: var(--pe-radius);
+	margin-bottom: var(--pe-gap);
+	font-size: 14px;
+
+	p { margin: 0 0 8px; }
+	ul { margin: 0; padding-left: 20px; }
+
+	&__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+	&--warn { background: #fff3d6; border: 1px solid #e8c974; }
+	&--error { background: #ffe2df; border: 1px solid #e9a9a3; }
+}
+
+/* ------------------------------------------------------------------ review. */
+
+.pe-review {
+	margin-bottom: var(--pe-gap);
+
+	&__decide {
+		padding: var(--pe-gap);
+		background: var(--pe-surface);
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+	}
+
+	&__actions {
+		display: flex;
+		gap: 8px;
+
+		// Accept and Request changes are both destructive-ish in the sense that neither is undoable
+		// by the person clicking, so they get equal width rather than one being the easy target.
+		> .pe-btn { flex: 1; }
+	}
+}
+
+.pe-changes {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+	border-top: 1px solid rgba(0, 0, 0, 0.12);
+
+	&__row {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 4px 12px;
+		padding: 8px 0;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+	}
+
+	&__label { flex: 1 1 60%; }
+
+	&__where {
+		display: block;
+		font-size: 12px;
+		color: var(--pe-muted);
+	}
+
+	&__move {
+		flex: 0 0 auto;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	&__detail {
+		flex: 1 1 100%;
+		font-size: 12px;
+		font-style: normal;
+		color: var(--pe-muted);
+	}
+}
+
+/* ------------------------------------------------------------------- notes. */
+
+.pe-notes {
+	&__list {
+		list-style: none;
+		margin: 0 0 var(--pe-gap);
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	&__compose {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+
+.pe-note {
+	padding: 10px 12px;
+	background: var(--pe-surface);
+	border: 1px solid var(--pe-line);
+	border-radius: var(--pe-radius);
+
+	// Own notes sit right, the other side sits left. On a phone this is the whole affordance for
+	// telling a question apart from its answer at a glance.
+	&.is-mine {
+		margin-left: 24px;
+		background: #eef4f8;
+		border-color: #c6d8e4;
+	}
+
+	&.is-event {
+		border-left: 3px solid var(--pe-recommended);
+	}
+
+	&__head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 4px 8px;
+		font-size: 12px;
+		color: var(--pe-muted);
+	}
+
+	&__author { font-weight: 600; color: var(--pe-ink); }
+
+	&__badge {
+		margin-left: 6px;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background: var(--pe-brand);
+		color: var(--pe-brand-ink);
+		font-size: 11px;
+		font-weight: 600;
+	}
+
+	&__event {
+		display: inline-block;
+		margin-top: 4px;
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--pe-recommended);
+	}
+
+	&__body {
+		margin: 6px 0 0;
+		// Notes arrive as plain text, so the line breaks a technician typed are the only formatting
+		// there is to keep.
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+}
+
+/* --------------------------------------------------------------- bottom nav. */
+
+.pe-nav {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pe-gap);
+	padding: 10px var(--pe-gap);
+	padding-bottom: calc(10px + env(safe-area-inset-bottom));
+	margin: var(--pe-gap) calc(var(--pe-gap) * -1) 0;
+	background: var(--pe-surface);
+	border-top: 1px solid var(--pe-line);
+
+	&__count { font-size: 13px; color: var(--pe-muted); }
+}
+
+.pe-noscript {
+	padding: 24px;
+	text-align: center;
+}
+
+/* -------------------------------------------------------- proposal editor. */
+
+/**
+ * Josh's screen, and the only one in this app that is not used one-handed in a crawlspace — it is a
+ * writing surface, used sitting down. So the type is a little larger, the textareas are generous,
+ * and the layout widens on a desktop rather than staying phone-shaped out of habit.
+ */
+
+.pe-btn--quiet {
+	background: transparent;
+	border-color: transparent;
+	color: var(--pe-brand);
+	font-weight: 600;
+}
+
+.pe-banner--ok {
+	background: #dcf2e5;
+	border: 1px solid #96d2b1;
+
+	&__note { color: #10603a; }
+}
+
+.pe-banner__note {
+	margin: 0;
+	font-size: 13px;
+	color: var(--pe-muted);
+}
+
+.pe-pill {
+	&--draft { background: #e8edf1; color: var(--pe-muted); }
+	&--sent { background: #e2edfb; color: #0b5cad; }
+	&--viewed { background: #ede0ff; color: #5b2ea6; }
+	&--signed { background: #dcf2e5; color: #10603a; }
+	&--declined { background: #ffe2df; color: #97231c; }
+}
+
+.pe-proposal {
+	&__head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 4px;
+	}
+
+	&__title {
+		margin: 0;
+		font-size: 22px;
+	}
+
+	&__body {
+		// A <fieldset> so a signed proposal can be disabled in one place. Its default border and
+		// padding would otherwise box the whole screen in for no reason.
+		margin: var(--pe-gap) 0 0;
+		padding: 0;
+		border: 0;
+		min-width: 0;
+
+		&:disabled {
+			opacity: 0.75;
+		}
+	}
+
+	&__actions {
+		position: sticky;
+		bottom: 0;
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		padding: 12px 0;
+		background: linear-gradient(to bottom, rgba(244, 246, 248, 0), var(--pe-bg) 30%);
+
+		> .pe-btn { flex: 1 1 30%; }
+	}
+
+	&__link {
+		margin: 0 0 var(--pe-gap);
+		font-size: 13px;
+		color: var(--pe-muted);
+	}
+
+	&__onsite {
+		border-color: var(--pe-brand);
+	}
+}
+
+.pe-pgroup {
+	padding: var(--pe-gap);
+	margin-bottom: var(--pe-gap);
+	background: var(--pe-surface);
+	border: 1px solid var(--pe-line);
+	border-radius: var(--pe-radius);
+
+	&__title {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0;
+		font-size: 16px;
+	}
+
+	&__count {
+		margin-left: auto;
+		font-size: 13px;
+		font-weight: 400;
+		color: var(--pe-muted);
+	}
+
+	&__hint {
+		margin: 4px 0 12px;
+		font-size: 13px;
+		color: var(--pe-muted);
+	}
+
+	&__empty {
+		margin: 0 0 12px;
+		font-size: 14px;
+		color: var(--pe-muted);
+		font-style: italic;
+	}
+
+	// The same three colours the customer sees on the printed plan, so Josh is editing in the
+	// vocabulary the document is written in.
+	&--immediate .pe-dot { background: var(--pe-immediate); }
+	&--recommended .pe-dot { background: var(--pe-recommended); }
+	&--optional .pe-dot { background: var(--pe-optional); }
+}
+
+.pe-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--pe-muted);
+}
+
+.pe-plines {
+	list-style: none;
+	margin: 0 0 12px;
+	padding: 0;
+}
+
+.pe-pline {
+	padding: 12px 0;
+	border-top: 1px solid var(--pe-line);
+
+	&:first-child { border-top: 0; padding-top: 0; }
+
+	&__text {
+		width: 100%;
+		padding: 10px;
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+		font: inherit;
+		resize: vertical;
+	}
+
+	&__tools {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 8px;
+		flex-wrap: wrap;
+	}
+
+	&__move {
+		flex: 1 1 auto;
+		min-height: 40px;
+		padding: 0 8px;
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+		background: var(--pe-surface);
+		font: inherit;
+		font-size: 14px;
+	}
+
+	&__btn {
+		min-width: 40px;
+		min-height: 40px;
+		padding: 0 10px;
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+		background: var(--pe-surface);
+		font: inherit;
+		font-size: 14px;
+		cursor: pointer;
+
+		&:disabled { opacity: 0.4; cursor: default; }
+
+		&--remove { color: var(--pe-fail); }
+	}
+}
+
+.pe-pshots {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: 10px;
+}
+
+.pe-pshot {
+	border: 2px solid transparent;
+	border-radius: var(--pe-radius);
+	overflow: hidden;
+
+	&.is-chosen { border-color: var(--pe-brand); }
+
+	&__pick {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+
+		img {
+			display: block;
+			width: 100%;
+			aspect-ratio: 4 / 3;
+			object-fit: cover;
+		}
+	}
+
+	&__caption {
+		width: 100%;
+		padding: 8px;
+		border: 0;
+		border-top: 1px solid var(--pe-line);
+		font: inherit;
+		font-size: 14px;
+	}
+}
+
+/* ------------------------------------------------------- on-site signing. */
+
+.pe-sign {
+	&__pad {
+		display: block;
+		width: 100%;
+		height: 180px;
+		background: var(--pe-surface);
+		border: 1px dashed var(--pe-line);
+		border-radius: var(--pe-radius);
+
+		// Without this the first stroke scrolls the page instead of drawing on the pad.
+		touch-action: none;
+	}
+
+	&__tools {
+		display: flex;
+		gap: 8px;
+		margin-top: 10px;
+
+		> .pe-btn--primary { flex: 1; }
+	}
+
+	&__terms {
+		margin: 10px 0 0;
+		font-size: 12px;
+		color: var(--pe-muted);
+	}
+}
+
+@media (min-width: 720px) {
+	.pe-proposal__body {
+		max-width: 44rem;
+	}
+}

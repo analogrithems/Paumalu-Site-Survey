@@ -1,0 +1,19 @@
+{
+	"name": "paumalu-site-survey",
+	"version": "0.1.0",
+	"description": "Mobile-first residential electrical service inspections for Paumalu Electric field technicians.",
+	"private": true,
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "wp-scripts build",
+		"start": "wp-scripts start",
+		"lint:js": "wp-scripts lint-js",
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop",
+		"env:clean": "wp-env clean all"
+	},
+	"devDependencies": {
+		"@wordpress/env": "^10.0.0",
+		"@wordpress/scripts": "^30.0.0"
+	}
+}
