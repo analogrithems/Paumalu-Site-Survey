@@ -1,0 +1,15 @@
+.git/
+.github/
+.gitignore
+.distignore
+.nvmrc
+.wp-env.json
+node_modules/
+src/
+tests/
+CONTEXT.md
+README.md
+LICENSE
+package.json
+package-lock.json
+Residential_Electrical_Service_Inspection_Punch_List_Fillable.pdf
