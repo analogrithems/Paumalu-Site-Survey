@@ -123,9 +123,22 @@ final class Signature {
 
 		SurveyRepository::store_json( $survey_id, Meta::PROPOSAL, $proposal );
 
-		// The link has done its job. Leaving it live means a forwarded email keeps working against a
-		// signed document for another two months.
-		Proposal::revoke_token( $survey_id );
+		// The link deliberately stays live.
+		//
+		// It used to be revoked here, on the reasoning that a forwarded email should stop working once
+		// the document is signed. That reasoning does not survive contact with the redirect: the page
+		// posts back to itself, so the customer was sent straight to the URL that had just been killed
+		// and the last thing they saw after putting their name to the scope of work was "This link is
+		// no longer valid."
+		//
+		// And the security it bought was close to nothing. Anyone holding the link could already read
+		// the document before it was signed; signing changes no exposure. What it did cost was the
+		// customer's own receipt — the only copy they have of what they agreed to. A signed proposal is
+		// immutable, cannot be signed twice and cannot be declined, so what remains at that URL is a
+		// read-only record, which is exactly what they should keep.
+		//
+		// Resending still mints a fresh token, and minting revokes the old one, so a superseded link
+		// dies the moment a replacement is issued.
 
 		/**
 		 * Fires when a customer signs a proposal.

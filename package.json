@@ -13,7 +13,7 @@
 		"env:clean": "wp-env clean all"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^10.0.0",
-		"@wordpress/scripts": "^30.0.0"
+		"@wordpress/env": "^11.13.0",
+		"@wordpress/scripts": "^34.1.0"
 	}
 }

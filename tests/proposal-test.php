@@ -188,6 +188,30 @@ $document = [
 	],
 ];
 
+// ------------------------------------------- 0. a survey nobody has typed into.
+
+// Found on production, not here: a survey with no stored data at all gets its document from
+// blank_document(), whose empty maps are (object) [] so they encode as {} rather than []. The
+// builder subscripted one of those as an array and fatalled, so opening the proposal screen for a
+// freshly created survey was a 500. Cheap to guard, and this is the first thing a reviewer would
+// have hit had they clicked through before the technician started filling anything in.
+$bare_id = (int) wp_insert_post(
+	[
+		'post_type'   => 'pe_site_survey',
+		'post_title'  => 'Untouched',
+		'post_status' => Statuses::ACCEPTED,
+		'post_author' => $tech,
+	]
+);
+
+$bare = ProposalBuilder::draft( $bare_id );
+
+$check( 'a survey with no saved data still drafts', is_array( $bare ), true );
+$check( 'with nothing in it', array_sum( array_map( 'count', $bare['groups'] ) ), 0 );
+$check( 'and saving that draft does not fatal', is_wp_error( Proposal::save( $bare_id, $bare ) ), false );
+
+wp_delete_post( $bare_id, true );
+
 // -------------------------------------------------------- 1. the auto-draft.
 
 [ , $created ] = $call( $tech, 'POST', $ns . '/surveys' );
@@ -491,10 +515,14 @@ $check( 'with no attachment behind it', $typed['signature']['attachment_id'] ?? 
 $check( 'the IP is recorded as evidence', '' !== ( $typed['signature']['ip'] ?? '' ), true );
 $check( 'the proposal is signed', $typed['status'] ?? '', Proposal::SIGNED );
 
+// The link stays live after signing, and that is deliberate. The page posts back to itself, so
+// revoking here sent the customer straight to a dead URL — the last thing they saw after approving
+// the work was "This link is no longer valid". It is also their only copy of what they agreed to,
+// and signing exposes nothing that holding the link did not already expose.
 $check(
-	'signing revokes the link, so a forwarded email stops working',
+	'signing leaves the link live, so the customer keeps their receipt',
 	Proposal::find_by_token( $token ),
-	null
+	$survey_id
 );
 
 $signed_mail = $drain();

@@ -7,7 +7,7 @@ version **0.6.0**.
 
 ## 1. What this is
 
-Paumalu Electric (residential electrical contractor, North Shore of Oahu — owner **Aaron Collins**,
+Paumalu Electric (residential electrical contractor, North Shore of Oahu — owner **Paul Hancock**,
 manager **Josh Hancock**) ran residential service inspections off a fillable PDF:
 `Residential_Electrical_Service_Inspection_Punch_List_Fillable.pdf` (in this folder — the source of
 truth for the question catalog). ~85 checklist items across 10 sections.

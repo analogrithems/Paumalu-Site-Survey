@@ -75,10 +75,17 @@ final class ProposalBuilder {
 			];
 		}
 
+		// Cast before subscripting. A survey whose data has never been saved gets its document from
+		// SurveyRepository::blank_document(), where the empty maps are (object) [] on purpose — so
+		// wp_json_encode() emits {} rather than [] and the client is not handed an array where it
+		// expects a map. Reading $doc['upgrades'][$key] straight off that is a fatal, which meant
+		// opening the proposal screen for a survey nobody had typed into yet returned a 500.
+		$chosen_upgrades = (array) ( $doc['upgrades'] ?? [] );
+
 		// Upgrades are opportunities rather than findings, so they can never be derived from the punch
 		// list — they land in the optional bucket directly, after the failures that got there on merit.
 		foreach ( Catalog::upgrades( $version ) as $key => $upgrade ) {
-			$chosen = (array) ( $doc['upgrades'][ $key ] ?? [] );
+			$chosen = (array) ( $chosen_upgrades[ $key ] ?? [] );
 
 			if ( empty( $chosen['interested'] ) ) {
 				continue;

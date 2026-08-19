@@ -428,15 +428,23 @@ final class SurveyRepository {
 	 * @return \Generator<array{0: array<string, mixed>, 1: string, 2: string|null}>
 	 */
 	public static function iterate_answers( array $doc ): \Generator {
+		// Every container is cast before it is subscripted, because the blank document uses
+		// (object) [] for its empty maps so they survive JSON encoding as {} rather than []. An
+		// unsaved survey therefore hands this method stdClass where it looks like it will get an
+		// array, and subscripting one of those is a fatal rather than a null.
 		foreach ( (array) ( $doc['sections'] ?? [] ) as $section ) {
+			$section = (array) $section;
+
 			foreach ( (array) ( $section['items'] ?? [] ) as $item_key => $answer ) {
-				yield [ $answer, (string) $item_key, null ];
+				yield [ (array) $answer, (string) $item_key, null ];
 			}
 		}
 
 		foreach ( (array) ( $doc['panels'] ?? [] ) as $panel ) {
+			$panel = (array) $panel;
+
 			foreach ( (array) ( $panel['items'] ?? [] ) as $item_key => $answer ) {
-				yield [ $answer, (string) $item_key, (string) ( $panel['id'] ?? '' ) ];
+				yield [ (array) $answer, (string) $item_key, (string) ( $panel['id'] ?? '' ) ];
 			}
 		}
 	}
