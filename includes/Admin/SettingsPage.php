@@ -31,6 +31,7 @@ final class SettingsPage {
 			'phone'             => '(808) 638-9054',
 			'address'           => '',
 			'logo_id'           => '',
+			'from_email'        => '',
 			'notify_emails'     => get_option( 'admin_email', '' ),
 			'token_expiry_days' => '60',
 			'disclaimer'        => __(
@@ -96,6 +97,10 @@ final class SettingsPage {
 			$clean[ $key ] = sanitize_textarea_field( (string) ( $input[ $key ] ?? '' ) );
 		}
 
+		$from_email = sanitize_email( trim( (string) ( $input['from_email'] ?? '' ) ) );
+
+		$clean['from_email'] = is_email( $from_email ) ? $from_email : '';
+
 		$emails = array_filter(
 			array_map(
 				static fn( string $email ): string => sanitize_email( trim( $email ) ),
@@ -123,6 +128,7 @@ final class SettingsPage {
 			'license_number'    => [ __( 'Contractor license number', 'paumalu-site-survey' ), 'text', __( 'Appears on every customer-facing proposal.', 'paumalu-site-survey' ) ],
 			'phone'             => [ __( 'Phone', 'paumalu-site-survey' ), 'text', '' ],
 			'address'           => [ __( 'Mailing address', 'paumalu-site-survey' ), 'textarea', '' ],
+			'from_email'        => [ __( 'Proposal from address', 'paumalu-site-survey' ), 'email', __( 'Proposal emails to customers are sent from this address. Leave blank to use the site default.', 'paumalu-site-survey' ) ],
 			'notify_emails'     => [ __( 'Notify on submission', 'paumalu-site-survey' ), 'text', __( 'Comma-separated. These addresses are emailed when a technician submits a survey for review.', 'paumalu-site-survey' ) ],
 			'token_expiry_days' => [ __( 'Proposal link expires after (days)', 'paumalu-site-survey' ), 'number', '' ],
 			'disclaimer'        => [ __( 'Inspection disclaimer', 'paumalu-site-survey' ), 'textarea', '' ],

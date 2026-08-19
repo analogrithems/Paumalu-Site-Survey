@@ -828,8 +828,55 @@ body.pe-survey-body {
 		color: var(--pe-muted);
 	}
 
+	&__email {
+		max-width: 360px;
+		margin-bottom: 8px;
+	}
+
 	&__onsite {
 		border-color: var(--pe-brand);
+	}
+}
+
+.pe-elog {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	&__row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 4px 10px;
+		padding: 8px 10px;
+		background: var(--pe-bg);
+		border: 1px solid var(--pe-line);
+		border-radius: var(--pe-radius);
+		font-size: 13px;
+
+		&.is-failed {
+			background: #ffe2df;
+			border-color: #e9a9a3;
+		}
+	}
+
+	&__to { font-weight: 600; }
+	&__at { color: var(--pe-muted); }
+
+	&__status {
+		margin-left: auto;
+		font-weight: 600;
+	}
+
+	.is-failed &__status { color: #97231c; }
+
+	&__error {
+		flex: 1 1 100%;
+		font-size: 12px;
+		color: var(--pe-muted);
 	}
 }
 

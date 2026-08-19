@@ -22,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class ProposalMailer {
 
+	private const LOG_KEEP = 20;
+
 	/**
 	 * @return array{sent_to: string, expires: string}|\WP_Error
 	 */
@@ -50,6 +52,17 @@ final class ProposalMailer {
 			'' !== $company ? $company : __( 'Paumalu Electric', 'paumalu-site-survey' )
 		);
 
+		// wp_mail() only reports whether PHPMailer accepted the message for handoff, not whether the
+		// recipient's server took it — there is no bounce feedback loop here. This hook is the one
+		// extra signal available: it fires when the mail transport itself refused the attempt (bad
+		// address, connection refused, SMTP rejection at RCPT TO if SMTP is configured).
+		$mail_error = '';
+		$capture    = static function ( \WP_Error $error ) use ( &$mail_error ): void {
+			$mail_error = $error->get_error_message();
+		};
+
+		add_action( 'wp_mail_failed', $capture );
+
 		$sent = wp_mail(
 			$email,
 			$subject,
@@ -59,8 +72,13 @@ final class ProposalMailer {
 				// A homeowner replying to this should reach a person, not a no-reply mailbox on a
 				// server. Whoever is on the notification list is who they get.
 				...self::reply_to(),
+				...self::from(),
 			]
 		);
+
+		remove_action( 'wp_mail_failed', $capture );
+
+		self::record( $survey_id, $email, $sent, $mail_error );
 
 		if ( ! $sent ) {
 			// The token was minted before the send. Revoking it on failure keeps a live link from
@@ -92,6 +110,40 @@ final class ProposalMailer {
 	}
 
 	/**
+	 * Every attempt to email this proposal, oldest first — a wrong address is only fixable if Josh
+	 * can see what was actually sent and where, then correct it and send again.
+	 */
+	private static function record( int $survey_id, string $email, bool $success, string $error ): void {
+		$raw     = get_post_meta( $survey_id, Meta::PROPOSAL_EMAIL_LOG, true );
+		$decoded = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : [];
+		$entries = is_array( $decoded ) ? $decoded : [];
+
+		$entries[] = [
+			'to'      => $email,
+			'at'      => time(),
+			'success' => $success,
+			'error'   => $error,
+		];
+
+		SurveyRepository::store_json(
+			$survey_id,
+			Meta::PROPOSAL_EMAIL_LOG,
+			array_slice( $entries, -self::LOG_KEEP )
+		);
+	}
+
+	/**
+	 * @return list<array{to: string, at: int, success: bool, error: string}>
+	 */
+	public static function log( int $survey_id ): array {
+		$raw     = get_post_meta( $survey_id, Meta::PROPOSAL_EMAIL_LOG, true );
+		$decoded = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : [];
+		$entries = is_array( $decoded ) ? $decoded : [];
+
+		return array_reverse( $entries );
+	}
+
+	/**
 	 * @return list<string>
 	 */
 	private static function reply_to(): array {
@@ -101,6 +153,21 @@ final class ProposalMailer {
 		);
 
 		return [] === $emails ? [] : [ 'Reply-To: ' . reset( $emails ) ];
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function from(): array {
+		$email = SettingsPage::value( 'from_email' );
+
+		if ( '' === $email ) {
+			return [];
+		}
+
+		$name = SettingsPage::value( 'company_name' );
+
+		return [ 'From: ' . ( '' !== $name ? $name . ' <' . $email . '>' : $email ) ];
 	}
 
 	/**

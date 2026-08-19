@@ -41,6 +41,9 @@ final class Meta {
 	public const PROPOSAL_EXPIRES = '_pe_proposal_expires';
 	public const PROPOSAL_SENT_TO = '_pe_proposal_sent_to';
 
+	/** Every send attempt, oldest first — whether wp_mail() handed it off or failed outright. */
+	public const PROPOSAL_EMAIL_LOG = '_pe_proposal_email_log';
+
 	/**
 	 * Set once a signed proposal's work has been put on the calendar.
 	 *

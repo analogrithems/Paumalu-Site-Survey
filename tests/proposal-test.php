@@ -92,13 +92,14 @@ $post_json = function ( int $as_user, string $route, array $document ): array {
 	return [ $response->get_status(), $response->get_data() ];
 };
 
-$mail = [];
+$mail                = [];
+$force_mail_failure  = false;
 
 add_filter(
 	'pre_wp_mail',
-	function ( $short_circuit, array $atts ) use ( &$mail ) {
+	function ( $short_circuit, array $atts ) use ( &$mail, &$force_mail_failure ) {
 		$mail[] = $atts;
-		return true;
+		return ! $force_mail_failure;
 	},
 	10,
 	2
@@ -460,6 +461,144 @@ $check( 'but the token itself is never handed back to the app', isset( $sent['li
 $outbound = $drain();
 $check( 'one email left the building', count( $outbound ), 1 );
 $check( 'addressed to the customer', (array) ( $outbound[0]['to'] ?? [] ), [ 'malia@example.test' ] );
+
+$has_from_header = static function ( array $mail ): bool {
+	foreach ( (array) ( $mail['headers'] ?? [] ) as $header ) {
+		if ( str_starts_with( (string) $header, 'From:' ) ) {
+			return true;
+		}
+	}
+
+	return false;
+};
+
+$check( 'no From header when no from-address is configured', $has_from_header( $outbound[0] ), false );
+
+// A second, throwaway survey just to prove the from-address setting reaches the actual send —
+// the primary survey above is needed intact for the token/signature checks that follow it.
+update_option(
+	\Paumalu\SiteSurvey\Admin\SettingsPage::OPTION,
+	array_merge(
+		\Paumalu\SiteSurvey\Admin\SettingsPage::defaults(),
+		[
+			'notify_emails' => 'harness_prop_josh@example.test',
+			'from_email'    => 'jobs@paumaluelectric.test',
+		]
+	)
+);
+
+$from_id = (int) wp_insert_post(
+	[
+		'post_type'   => 'pe_site_survey',
+		'post_title'  => 'From-address check',
+		'post_status' => Statuses::DRAFT,
+		'post_author' => $tech,
+	]
+);
+
+Paumalu\SiteSurvey\Data\SurveyRepository::save(
+	$from_id,
+	array_merge(
+		$document,
+		[ 'customer' => [ 'name' => 'From Test', 'address' => '1 Test Way, Haleiwa', 'email' => 'fromcheck@example.test' ] ]
+	)
+);
+
+$call( $tech, 'POST', $ns . '/surveys/' . $from_id . '/submit' );
+$call( $reviewer, 'POST', $ns . '/surveys/' . $from_id . '/accept' );
+Proposal::save( $from_id, ProposalBuilder::draft( $from_id ) );
+$drain();
+
+$call( $reviewer, 'POST', $ns . '/surveys/' . $from_id . '/proposal/send' );
+$from_outbound = $drain();
+
+$check( 'the from-address email went out', count( $from_outbound ), 1 );
+$check(
+	'a From header is set when a from-address is configured',
+	$has_from_header( $from_outbound[0] ?? [] ),
+	true
+);
+
+update_option(
+	\Paumalu\SiteSurvey\Admin\SettingsPage::OPTION,
+	array_merge(
+		\Paumalu\SiteSurvey\Admin\SettingsPage::defaults(),
+		[
+			'notify_emails'     => 'harness_prop_josh@example.test',
+			'token_expiry_days' => '60',
+		]
+	)
+);
+
+// --------------------------------------------------------- 6b. email log + resend.
+
+// A third, throwaway survey — resending against $survey_id above would mint it a fresh token and
+// break the token/expiry checks below, which depend on the exact token already captured in $token.
+$log_id = (int) wp_insert_post(
+	[
+		'post_type'   => 'pe_site_survey',
+		'post_title'  => 'Email log check',
+		'post_status' => Statuses::DRAFT,
+		'post_author' => $tech,
+	]
+);
+
+Paumalu\SiteSurvey\Data\SurveyRepository::save(
+	$log_id,
+	array_merge(
+		$document,
+		[ 'customer' => [ 'name' => 'Log Test', 'address' => '2 Test Way, Haleiwa', 'email' => 'wrong@example.test' ] ]
+	)
+);
+
+$call( $tech, 'POST', $ns . '/surveys/' . $log_id . '/submit' );
+$call( $reviewer, 'POST', $ns . '/surveys/' . $log_id . '/accept' );
+Proposal::save( $log_id, ProposalBuilder::draft( $log_id ) );
+$drain();
+
+$force_mail_failure                = true;
+[ $fail_status, $fail_body ]       = $call( $reviewer, 'POST', $ns . '/surveys/' . $log_id . '/proposal/send' );
+$force_mail_failure                = false;
+$drain();
+
+$check( 'a send attempt that fails to hand off is reported to the reviewer', $fail_status, 500 );
+$check( 'and says so specifically', $fail_body['code'] ?? '', 'pe_mail_failed' );
+$check(
+	'the dangling token from the failed attempt is revoked',
+	get_post_meta( $log_id, Meta::PROPOSAL_TOKEN, true ),
+	''
+);
+
+$log_after_failure = Paumalu\SiteSurvey\Proposal\ProposalMailer::log( $log_id );
+$check( 'the failed attempt is recorded in the log', count( $log_after_failure ), 1 );
+$check( 'addressed to the address on file', $log_after_failure[0]['to'] ?? '', 'wrong@example.test' );
+$check( 'and marked as not successful', $log_after_failure[0]['success'] ?? null, false );
+
+// Corrected and resent — the email override is how Josh fixes a mistyped address without having
+// to leave this screen to go edit the customer's saved record first.
+[ $resend_status, $resend_body ] = $call(
+	$reviewer,
+	'POST',
+	$ns . '/surveys/' . $log_id . '/proposal/send',
+	[ 'email' => 'right@example.test' ]
+);
+$drain();
+
+$check( 'the corrected address sends successfully', $resend_status, 200 );
+$check( 'and goes to the corrected address', $resend_body['sent_to'] ?? '', 'right@example.test' );
+
+$log_after_resend = $resend_body['email_log'] ?? [];
+$check( 'both attempts are now on the log', count( $log_after_resend ), 2 );
+$check( 'most recent attempt first', $log_after_resend[0]['to'] ?? '', 'right@example.test' );
+$check( 'and it is marked successful', $log_after_resend[0]['success'] ?? null, true );
+$check( 'the earlier failed attempt is still there beneath it', $log_after_resend[1]['success'] ?? null, false );
+
+[ , $log_via_get ] = $call( $reviewer, 'GET', $ns . '/surveys/' . $log_id . '/proposal' );
+$check(
+	'the log is also visible from a plain GET of the proposal, not just the send response',
+	count( $log_via_get['email_log'] ?? [] ),
+	2
+);
 
 preg_match( '#/proposal/([a-f0-9]{40})/#', (string) ( $outbound[0]['message'] ?? '' ), $found );
 $token = $found[1] ?? '';

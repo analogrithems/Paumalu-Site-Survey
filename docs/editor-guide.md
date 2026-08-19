@@ -87,6 +87,26 @@ Two ways a proposal gets signed:
 Once signed, the proposal locks — you can still read it, but not edit it. That's intentional: it's a
 record of exactly what was agreed to.
 
+## Checking the send log and fixing a wrong email address
+
+Above the **Send to customer** button is a **Send to** field, pre-filled with the customer's email on
+file. You can edit it right there before sending — handy when you catch a typo, or when the customer
+gives you a better address to use than the one on the original survey. Changing it here only affects
+where this proposal is sent; it doesn't update the customer's saved contact info.
+
+Every time a proposal is emailed — the first send and any resend — it's added to a **Send history**
+list on this screen, most recent first, showing the address, the time, and whether it went out:
+
+- **Sent** means our mail server handed the message off successfully. It does **not** confirm the
+  customer's inbox actually received or opened it — there's no read receipt or delivery confirmation
+  here, just proof that the attempt was made and accepted for delivery on our end.
+- **Send failed** means the attempt didn't go through — usually a bad or mistyped address. If there's
+  more detail available (like a rejection from the mail server), it's shown under the entry.
+
+If you sent to the wrong address, just correct it in the **Send to** field and click **Resend to
+customer**. Every attempt stays in the log — nothing gets overwritten — so you can always see the full
+history of who this proposal has been emailed to and when.
+
 ## What you can't do here
 
 Requesting changes, accepting, and sending proposals are gated to the Editor/Administrator roles — a

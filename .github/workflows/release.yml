@@ -1,0 +1,57 @@
+name: Release
+
+# Triggered by a version tag (v1.2.3), not by every push to main — a release should correspond to a
+# deliberate version bump, not to every commit that happens to land on main. Push the version-bump
+# commit first, then tag it, then push the tag.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # A mismatch here means the self-updater would compare the wrong versions on every site running
+      # this plugin, so it's worth failing the release outright rather than shipping it.
+      - name: Verify tag matches plugin version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          header_version=$(grep -m1 '^ \* Version:' paumalu-site-survey.php | sed -E 's/.*Version:[[:space:]]*//')
+          if [ "$version" != "$header_version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the plugin's Version header ($header_version)" >&2
+            exit 1
+          fi
+
+      # Same exclusion list the old rsync deploy used, so the zip a site self-updates to is exactly
+      # what would have been rsync'd by hand — no src/, tests/, docs/, or repo tooling on production.
+      - name: Package plugin zip
+        run: |
+          slug="paumalu-site-survey"
+          version="${GITHUB_REF_NAME#v}"
+          stage="/tmp/$slug"
+          mkdir -p "$stage"
+          rsync -a --exclude-from=.distignore ./ "$stage/"
+          (cd /tmp && zip -rq "$GITHUB_WORKSPACE/$slug-$version.zip" "$slug")
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: paumalu-site-survey-*.zip
+          generate_release_notes: true

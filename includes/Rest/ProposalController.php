@@ -329,17 +329,18 @@ final class ProposalController extends Controller {
 		$expires = (int) get_post_meta( $survey_id, \Paumalu\SiteSurvey\Data\Meta::PROPOSAL_EXPIRES, true );
 
 		return [
-			'id'       => $survey_id,
-			'proposal' => $proposal,
-			'saved'    => Proposal::exists( $survey_id ),
+			'id'        => $survey_id,
+			'proposal'  => $proposal,
+			'saved'     => Proposal::exists( $survey_id ),
 			// The gallery picker needs the whole library for this survey, not just the chosen four.
-			'photos'   => array_values( PhotoService::for_survey( $survey_id ) ),
-			'link'     => [
+			'photos'    => array_values( PhotoService::for_survey( $survey_id ) ),
+			'link'      => [
 				// Never the token itself: it is shown once, at the moment it is minted, and after
 				// that not even the reviewer's own screen can recover it.
 				'active'  => '' !== (string) get_post_meta( $survey_id, \Paumalu\SiteSurvey\Data\Meta::PROPOSAL_TOKEN, true ),
 				'expires' => $expires > 0 ? gmdate( 'c', $expires ) : '',
 			],
+			'email_log' => ProposalMailer::log( $survey_id ),
 		];
 	}
 }

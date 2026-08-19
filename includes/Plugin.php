@@ -24,6 +24,7 @@ final class Plugin {
 		( new Review\Notes() )->register();
 		( new Review\Notifications() )->register();
 		( new Setup\AdminLockout() )->register();
+		( new Setup\Updates() )->register();
 		( new Admin\SettingsPage() )->register();
 		( new Admin\ListTable() )->register();
 		( new Admin\DocsMenu() )->register();

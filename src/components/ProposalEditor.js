@@ -86,6 +86,7 @@ export default function ProposalEditor( { route, navigate } ) {
 	const [ busy, setBusy ] = useState( '' );
 	const [ saved, setSaved ] = useState( false );
 	const [ sentTo, setSentTo ] = useState( '' );
+	const [ sendEmail, setSendEmail ] = useState( '' );
 
 	const dirty = useRef( false );
 
@@ -104,6 +105,7 @@ export default function ProposalEditor( { route, navigate } ) {
 
 				setState( proposalState );
 				setSurvey( loaded );
+				setSendEmail( loaded.data?.customer?.email || '' );
 			} )
 			.catch( ( err ) => ! cancelled && setError( err ) );
 
@@ -254,10 +256,11 @@ export default function ProposalEditor( { route, navigate } ) {
 		}
 
 		await run( 'send', async () => {
-			const result = await api.sendProposal( surveyId );
+			const result = await api.sendProposal( surveyId, sendEmail );
 
 			setState( result );
 			setSentTo( result.sent_to || '' );
+			setSendEmail( result.sent_to || sendEmail );
 
 			return result;
 		} );
@@ -474,6 +477,20 @@ export default function ProposalEditor( { route, navigate } ) {
 			</fieldset>
 
 			{ ! isSigned && (
+				<label className="pe-field pe-proposal__email">
+					<span className="pe-field__label">{ 'Send to' }</span>
+					<input
+						type="email"
+						inputMode="email"
+						autoComplete="email"
+						value={ sendEmail }
+						onChange={ ( event ) => setSendEmail( event.target.value ) }
+						placeholder="customer@example.com"
+					/>
+				</label>
+			) }
+
+			{ ! isSigned && (
 				<div className="pe-proposal__actions">
 					<button
 						type="button"
@@ -518,6 +535,36 @@ export default function ProposalEditor( { route, navigate } ) {
 						link.expires
 					).toLocaleDateString() }.` }
 				</p>
+			) }
+
+			{ !! state.email_log?.length && (
+				<section className="pe-pgroup pe-proposal__log">
+					<h2 className="pe-pgroup__title">{ 'Send history' }</h2>
+					<p className="pe-pgroup__hint">
+						{
+							'Every attempt to email this proposal, most recent first. "Sent" means our server handed it off — it does not confirm the customer’s inbox accepted it. If an address was wrong, correct it above and send again.'
+						}
+					</p>
+					<ul className="pe-elog">
+						{ state.email_log.map( ( entry, index ) => (
+							<li
+								key={ index }
+								className={ `pe-elog__row${ entry.success ? '' : ' is-failed' }` }
+							>
+								<span className="pe-elog__to">{ entry.to }</span>
+								<span className="pe-elog__at">
+									{ new Date( entry.at * 1000 ).toLocaleString() }
+								</span>
+								<span className="pe-elog__status">
+									{ entry.success ? 'Sent' : 'Send failed' }
+								</span>
+								{ ! entry.success && !! entry.error && (
+									<span className="pe-elog__error">{ entry.error }</span>
+								) }
+							</li>
+						) ) }
+					</ul>
+				</section>
 			) }
 
 			{ /* Only once there is something saved to sign. Offering the pad against an unsaved draft

@@ -1,7 +1,7 @@
 # Paumalu Site Survey — project context
 
 Handoff notes for anyone (human or agent) picking this up cold. Last updated 2026-08-19, plugin
-version **0.7.1**.
+version **0.8.0**.
 
 ---
 
@@ -321,7 +321,26 @@ PHP tests run as `npx wp-env run cli wp eval-file wp-content/plugins/paumalu-sit
   looks like host-header injection but is gated behind `preg_match("/^(.*)\.dream\.website$/")` and
   is inert on the real hostname. Already investigated; leave it alone.
 
-**Deploy** (rsync over SSH; `.distignore` lists what stays behind):
+**Deploy** (GitHub Releases — every production site, including this one, self-updates from here via
+the vendored Plugin Update Checker in `includes/Setup/Updates.php`):
+
+1. Bump the version — the `Version:` docblock line in `paumalu-site-survey.php` (see
+   [DEVELOPER.md](DEVELOPER.md)).
+2. Commit, push to `main`.
+3. Tag the commit and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. `.github/workflows/release.yml` builds the React bundle, packages a zip using the same
+   `.distignore` exclusion list the old rsync deploy used (no `src/`, `tests/`, `docs/`, or repo
+   tooling on production), and publishes it as a GitHub Release with the zip attached.
+5. Any site running the plugin sees an "Update Now" row on its own Plugins page within the hour (or
+   immediately on a manual "Check for updates") — same manual-click model as a wordpress.org plugin,
+   just pointed at this repo's releases instead.
+
+**One-time bootstrap exception:** the very first deploy that *contains* the self-updater code had to
+go out the old way, over rsync — a site with no self-updater installed yet has no way to pull one in.
+Every release after that flows through GitHub Releases above.
+
+Manual rsync deploy — kept only for that from-scratch bootstrap case, or a recovery where the
+self-updater itself is broken:
 
 ```bash
 npm run build
@@ -356,8 +375,9 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–7 are built,** plus a docs/dashboard pass beyond the original plan. Version 0.7.1 is what
-is live in production right now.
+**Phases 1–7 are built,** plus a docs/dashboard pass and a self-update/release pass beyond the
+original plan. Version 0.7.1 is what is live in production right now; 0.8.0 is code-complete, tested
+locally, and queued to deploy this session.
 
 | Phase | Status |
 |---|---|
@@ -370,6 +390,7 @@ is live in production right now.
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
 | 8 Deploy | per-phase; 0.7.1 is what is live right now |
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
+| 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done locally, deploying as 0.8.0 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator

@@ -123,6 +123,13 @@ run are asserted against, not just logged.
 
 ## Deploying
 
-See [CONTEXT.md](CONTEXT.md) for the SFTP/SSH deploy procedure, the Dreamhost environment specifics
-(no HTTPS, WP Super Cache, app passwords can't install plugins), and the version-bump convention
-(the `Version:` docblock line and `const VERSION` in `paumalu-site-survey.php` move together).
+Bump the `Version:` docblock line and `const VERSION` in `paumalu-site-survey.php` together, commit,
+push to `main`, then tag the commit and push the tag — `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml`
+builds the bundle, packages a zip (same exclusion list as the old rsync deploy, via `.distignore`),
+and publishes it as a GitHub Release. Every production site self-updates from that release feed via
+the vendored Plugin Update Checker (`includes/Setup/Updates.php`) — no manual SFTP/SSH step for a
+normal release.
+
+See [CONTEXT.md](CONTEXT.md) for the Dreamhost environment specifics (no HTTPS, WP Super Cache, app
+passwords can't install plugins), the fallback manual rsync procedure for a from-scratch install or a
+broken self-updater, and the deploy history.
