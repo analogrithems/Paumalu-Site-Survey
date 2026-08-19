@@ -16,7 +16,30 @@ const USER = process.env.PE_USER || 'fieldtech';
 const PASS = process.env.PE_PASS || 'fieldpass123';
 const REVIEWER = process.env.PE_REVIEWER || 'josh';
 const REVIEWER_PASS = process.env.PE_REVIEWER_PASS || 'joshpass123';
+const CUSTOMER_EMAIL = 'jane.kealoha@example.test';
 const SHOTS = new URL( './screenshots/', import.meta.url ).pathname;
+
+/**
+ * Read the mail the site tried to send.
+ *
+ * Backed by tests/mu/pe-mail-log.php, which .wp-env.json mounts as an mu-plugin. Needed because the
+ * proposal token is shown once and never returned to any browser — the emailed link is the only
+ * place the customer's URL exists, so without reading the mail this suite could not follow the path
+ * most customers take.
+ */
+async function mailbox() {
+	const response = await fetch( `${ BASE }/wp-json/paumalu-test/v1/mail` );
+
+	if ( ! response.ok ) {
+		throw new Error(
+			`mail log unavailable (${ response.status }) — is tests/mu mounted? try: npx wp-env start`
+		);
+	}
+
+	return response.json();
+}
+
+const clearMail = () => fetch( `${ BASE }/wp-json/paumalu-test/v1/mail`, { method: 'DELETE' } );
 
 mkdirSync( SHOTS, { recursive: true } );
 
@@ -82,6 +105,9 @@ const surveyId = parseInt( page.url().match( /\/survey\/(\d+)\// )[ 1 ], 10 );
 
 // Customer & site step.
 await page.fill( '.pe-field:has-text("Customer name") input', 'Jane Kealoha' );
+// The proposal cannot be emailed without this, so it belongs in the happy path rather than being
+// patched in at the point of sending.
+await page.fill( '.pe-form input[type="email"]', CUSTOMER_EMAIL );
 await page.fill( '.pe-field:has-text("Service address") textarea', '59-123 Pupukea Rd\nHaleiwa, HI 96712' );
 
 check( 'save indicator reacts to typing', await page.locator( '.pe-save' ).innerText(), 'Saving…' );
@@ -297,6 +323,28 @@ const afterDelete = await page.evaluate( async ( { id, photoId } ) => {
 check( 'deleting a photo removes the attachment', afterDelete.photos, 0 );
 check( 'and clears the id out of the answer', afterDelete.referenced, false );
 
+// Then take a better one. This is what actually happens on site — the first shot is blurred or the
+// flash blew out the panel — and it leaves the survey with a photo for the proposal gallery to use,
+// which is the part of the customer document that does the most work.
+await reloadedItem.locator( 'input[type="file"]' ).setInputFiles( {
+	name: 'meter-base-retake.jpg',
+	mimeType: 'image/jpeg',
+	buffer: Buffer.from( jpegBase64, 'base64' ),
+} );
+
+await reloadedItem.locator( '.pe-photo:not(.is-pending) .pe-photo__thumb' ).waitFor( { timeout: 20000 } );
+await reloadedItem.locator( '.pe-photo__caption' ).fill( 'Corrosion at the base of the meter enclosure' );
+
+await Promise.all( [
+	page.waitForResponse(
+		( response ) =>
+			/\/photos\/\d+$/.test( response.url() ) && response.request().method() === 'PATCH'
+	),
+	reloadedItem.locator( '.pe-item__label' ).click(),
+] );
+
+check( 'the retake is stored', await reloadedItem.locator( '.pe-photo__thumb' ).count(), 1 );
+
 // ---------------------------------------------------------- the review round trip.
 
 // A second context rather than logging this one out: the point of the exercise is that two people
@@ -414,6 +462,248 @@ check( 'the survey reads as accepted', await josh.locator( '.pe-form__head .pe-m
 check( 'an accepted survey offers no second accept', await josh.locator( 'button:has-text("Accept survey")' ).count(), 0 );
 
 await josh.screenshot( { path: `${ SHOTS }12-accepted.png` } );
+
+// ------------------------------------------------------------ build the proposal.
+
+await josh.click( 'button:has-text("Build the proposal")' );
+await josh.waitForSelector( '.pe-proposal', { timeout: 15000 } );
+
+check( 'accepting offers a route to the proposal', /\/survey\/\d+\/proposal\/$/.test( josh.url() ), true );
+check(
+	'an accepted survey draws no "not accepted yet" warning',
+	await josh.locator( '.pe-banner--warn' ).count(),
+	0
+);
+check(
+	'the customer is named on the proposal',
+	( await josh.locator( '.pe-proposal .pe-muted' ).first().innerText() ).includes( 'Jane Kealoha' ),
+	true
+);
+
+const immediate = josh.locator( '.pe-pgroup--immediate .pe-pline' );
+
+check( 'the failed items auto-draft into Immediate Hazards', await immediate.count() > 0, true );
+
+// Kept so the regenerate assertion below can prove this exact wording does not come back.
+const dropped = await immediate.first().locator( '.pe-pline__text' ).inputValue();
+
+check( 'auto-drafted wording is customer-facing, not the punch-list label', dropped.length > 20, true );
+
+await josh.fill(
+	'.pe-proposal .pe-field:has-text("Opening note") textarea',
+	'Aloha Jane — here is what we found at the house, in the order we would tackle it.'
+);
+
+await josh.screenshot( { path: `${ SHOTS }13-proposal-draft.png` } );
+
+// --------------------------------------------- a deleted line stays deleted.
+
+// This is the regression guard for the bug where Refresh quietly undid the reviewer's editorial
+// decisions: he removes a line, pulls in a later finding, and the removed line is back in the
+// document he then sends to the customer.
+//
+// Josh writes his own line first. Partly because that is what he actually does — the auto-draft is a
+// starting point — and partly because a proposal with nothing in it cannot be saved, which is
+// correct behaviour but would leave nothing to refresh against.
+const CUSTOM_LINE = 'Tidy the low-voltage runs in the garage while we are on site.';
+
+await josh.click( '.pe-pgroup--recommended button:has-text("+ Add an item")' );
+await josh.fill( '.pe-pgroup--recommended .pe-pline__text >> nth=-1', CUSTOM_LINE );
+
+const beforeRemove = await immediate.count();
+
+await immediate.first().locator( 'button:has-text("Remove")' ).click();
+
+check( 'removing a line drops it from the group', await immediate.count(), beforeRemove - 1 );
+
+await josh.click( 'button:has-text("Save draft")' );
+await josh.waitForSelector( 'button:has-text("Saved")', { timeout: 15000 } );
+
+const [ regenResponse ] = await Promise.all( [
+	josh.waitForResponse( ( r ) => r.url().includes( '/proposal/regenerate' ) ),
+	josh.click( 'button:has-text("Refresh from survey")' ),
+] );
+
+check( 'refreshing succeeds', regenResponse.status(), 200 );
+await josh.waitForSelector( 'button:has-text("Refresh from survey"):not([disabled])', { timeout: 15000 } );
+
+// .value, not textContent: React drives these textareas through the value property, so the element's
+// text content is empty and allTextContents() would report every line as blank — and a test that
+// compares blanks passes for the wrong reason.
+const afterRefresh = await josh.$$eval( '.pe-pline__text', ( nodes ) => nodes.map( ( n ) => n.value ) );
+
+check( 'refreshing does not resurrect a line the reviewer deleted', afterRefresh.includes( dropped ), false );
+check( 'refreshing keeps the reviewer\'s own wording', afterRefresh.includes( CUSTOM_LINE ), true );
+check( 'refreshing does not duplicate what is already there', await immediate.count(), beforeRemove - 1 );
+
+// ------------------------------------------------------------------- photos.
+
+check( 'the survey photo is offered to the gallery', await josh.locator( '.pe-pshot__pick' ).count(), 1 );
+
+// The draft picks the photos attached to failed items, so the gallery arrives populated rather than
+// as an empty box Josh has to think about.
+check( 'the draft has already chosen it', await josh.locator( '.pe-pshot.is-chosen' ).count(), 1 );
+check(
+	'the technician’s caption comes along rather than starting blank',
+	await josh.locator( '.pe-pshot__caption' ).inputValue(),
+	'Corrosion at the base of the meter enclosure'
+);
+
+// Off and on again, because the picker is a toggle and half a toggle is not a tested toggle.
+await josh.locator( '.pe-pshot__pick' ).first().click();
+
+check( 'unpicking a photo drops it from the gallery', await josh.locator( '.pe-pshot.is-chosen' ).count(), 0 );
+check( 'and takes its caption box with it', await josh.locator( '.pe-pshot__caption' ).count(), 0 );
+
+await josh.locator( '.pe-pshot__pick' ).first().click();
+
+check( 'picking it again restores it', await josh.locator( '.pe-pshot.is-chosen' ).count(), 1 );
+
+await josh.fill( '.pe-pshot__caption', 'Corrosion where the meter enclosure meets the wall.' );
+
+await josh.click( 'button:has-text("Save draft")' );
+await josh.waitForSelector( 'button:has-text("Saved")', { timeout: 15000 } );
+
+check(
+	'a saved proposal offers the on-site pad',
+	await josh.locator( '.pe-proposal__onsite .pe-sign' ).count(),
+	1
+);
+
+await josh.screenshot( { path: `${ SHOTS }14-proposal-saved.png` } );
+
+// -------------------------------------------------------- send to the customer.
+
+await clearMail();
+
+const [ sendResponse ] = await Promise.all( [
+	josh.waitForResponse( ( r ) => r.url().includes( '/proposal/send' ) ),
+	josh.click( 'button:has-text("Send to customer")' ),
+] );
+
+check( 'sending the proposal succeeds', sendResponse.status(), 200 );
+await josh.waitForSelector( '.pe-banner--ok:has-text("Sent to")', { timeout: 15000 } );
+check(
+	'the reviewer is told where it went',
+	await josh.locator( '.pe-banner--ok:has-text("Sent to")' ).innerText(),
+	`Sent to ${ CUSTOMER_EMAIL }.`
+);
+
+const mail = await mailbox();
+const toCustomer = mail.filter( ( item ) => item.to.includes( CUSTOMER_EMAIL ) );
+
+check( 'exactly one email goes to the customer', toCustomer.length, 1 );
+
+const tokenUrl = ( toCustomer[ 0 ]?.message || '' ).match(
+	/https?:\/\/[^"'\s<]+\/proposal\/[a-f0-9]{40}\/?/
+)?.[ 0 ];
+
+check( 'the email carries a 40-character token link', !! tokenUrl, true );
+
+// The reviewer's own screen must not be able to recover the token after minting it — the link is a
+// bearer credential, and a screen that can reproduce it is a second place it can leak from.
+check(
+	'the token is not echoed back into the reviewer UI',
+	/\/proposal\/[a-f0-9]{40}/.test( await josh.content() ),
+	false
+);
+
+// --------------------------------------------- the customer opens the link.
+
+// A fresh context with no cookies: this is a homeowner on their own phone, not a logged-in staff
+// member, and the page has to work with no session at all.
+const customerContext = await browser.newContext( { ...devices[ 'iPhone 13' ] } );
+const customer = await customerContext.newPage();
+
+const landed = await customer.goto( tokenUrl, { waitUntil: 'domcontentloaded' } );
+
+check( 'the emailed link resolves', landed.status(), 200 );
+check(
+	'and is never cached, since the URL is the secret',
+	/no-store/.test( landed.headers()[ 'cache-control' ] || '' ),
+	true
+);
+
+const customerBody = await customer.locator( 'body' ).innerText();
+
+check( 'the customer sees the opening note', customerBody.includes( 'Aloha Jane' ), true );
+check( 'the customer does not see the deleted line', customerBody.includes( dropped ), false );
+check( 'the plan is grouped by priority', await customer.locator( '.pp-group' ).count() > 0, true );
+check(
+	'the page asks search engines to stay away',
+	await customer.locator( 'meta[name="robots"][content*="noindex"]' ).count(),
+	1
+);
+check( 'there is no price anywhere on the page', /\$\s?\d/.test( customerBody ), false );
+
+await customer.screenshot( { path: `${ SHOTS }15-customer-proposal.png`, fullPage: true } );
+
+// --------------------------------------------------- the customer signs it.
+
+// The pad is hidden until the script runs, so its being visible is also the check that progressive
+// enhancement worked rather than the customer being left with a form they cannot complete.
+await customer.waitForSelector( '#pe-pad-wrap:not([hidden])', { timeout: 10000 } );
+
+await customer.fill( '.pp-form input[name="pe_name"]', 'Jane Kealoha' );
+
+// Submitting an untouched pad has to be refused on the page rather than round-tripping to find out.
+await customer.click( '.pp-form button[type="submit"]' );
+await customer.waitForSelector( '#pe-pad-wrap.is-missing', { timeout: 5000 } );
+
+check( 'an untouched pad is refused without a round trip', await customer.locator( '.pp-signed' ).count(), 0 );
+
+// The pad sits below the fold on a phone, and mouse coordinates are viewport-relative — without
+// this the strokes land on whatever happens to be at those coordinates instead.
+await customer.locator( '#pe-pad' ).scrollIntoViewIfNeeded();
+
+const pad = await customer.locator( '#pe-pad' ).boundingBox();
+
+await customer.mouse.move( pad.x + 30, pad.y + pad.height / 2 );
+await customer.mouse.down();
+await customer.mouse.move( pad.x + 90, pad.y + 30, { steps: 8 } );
+await customer.mouse.move( pad.x + 160, pad.y + pad.height - 30, { steps: 8 } );
+await customer.mouse.move( pad.x + 230, pad.y + 40, { steps: 8 } );
+await customer.mouse.up();
+
+await Promise.all( [
+	customer.waitForNavigation( { waitUntil: 'domcontentloaded' } ),
+	customer.click( '.pp-form button[type="submit"]' ),
+] );
+
+const signedBody = await customer.locator( 'body' ).innerText();
+
+check(
+	'signing is not rejected',
+	await customer.locator( '.pp-flash--bad' ).count() === 0 ||
+		( await customer.locator( '.pp-flash--bad' ).innerText() ),
+	true
+);
+
+check( 'signing is confirmed by name', signedBody.includes( 'Jane Kealoha' ), true );
+check( 'the signing form is gone afterwards', await customer.locator( '.pp-form' ).count(), 0 );
+check( 'the drawn mark is stored and shown back', await customer.locator( '.pp-signed__mark' ).count(), 1 );
+
+await customer.screenshot( { path: `${ SHOTS }16-signed.png`, fullPage: true } );
+
+// A second visit must show the same signed document rather than offering to sign again.
+await customer.goto( tokenUrl, { waitUntil: 'domcontentloaded' } );
+await customer.waitForSelector( '.pp-signed' );
+
+check( 'revisiting a signed proposal cannot re-sign it', await customer.locator( '.pp-form' ).count(), 0 );
+
+await customerContext.close();
+
+// ------------------------------------------- and it is locked for the reviewer.
+
+await josh.reload( { waitUntil: 'networkidle' } );
+await josh.waitForSelector( '.pe-proposal', { timeout: 15000 } );
+
+check( 'the reviewer sees it was signed', await josh.locator( '.pe-banner--ok:has-text("Signed by")' ).count(), 1 );
+check( 'a signed proposal cannot be sent again', await josh.locator( 'button:has-text("customer")' ).count(), 0 );
+check( 'a signed proposal cannot be edited', await josh.locator( '.pe-proposal__body[disabled]' ).count(), 1 );
+check( 'and the on-site pad is withdrawn', await josh.locator( '.pe-proposal__onsite' ).count(), 0 );
+
+await josh.screenshot( { path: `${ SHOTS }17-proposal-locked.png` } );
 
 // ------------------------------------------------------------ console health.
 

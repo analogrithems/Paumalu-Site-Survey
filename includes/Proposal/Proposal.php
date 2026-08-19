@@ -181,7 +181,7 @@ final class Proposal {
 		}
 
 		$clean['groups']    = $groups;
-		$clean['dismissed'] = self::track_dismissals( $current, $groups );
+		$clean['dismissed'] = self::track_dismissals( $survey_id, $current, $groups );
 		$clean['photos']    = self::sanitize_photos( (array) ( $incoming['photos'] ?? [] ), $survey_id );
 
 		return $clean;
@@ -198,12 +198,24 @@ final class Proposal {
 	 * come back and does not need remembering; and every custom line shares the same empty line id,
 	 * which would make one deletion look like all of them.
 	 *
+	 * The baseline is every line the builder can produce for this survey *right now*, not merely what
+	 * was stored last time. That distinction is the whole fix: the draft is generated on read and
+	 * deliberately not persisted, so on the reviewer's first save there is no stored version to diff
+	 * against — and the first pass is exactly when most deletions happen. Diffing against the stored
+	 * copy alone meant every deletion made before the first save came back on the next Refresh, which
+	 * is the failure this is here to prevent.
+	 *
 	 * @param array<string, mixed>              $current
 	 * @param array<string, list<array<mixed>>> $groups
 	 * @return list<string>
 	 */
-	private static function track_dismissals( array $current, array $groups ): array {
-		$before = self::line_ids( (array) ( $current['groups'] ?? [] ) );
+	private static function track_dismissals( int $survey_id, array $current, array $groups ): array {
+		$before = array_unique(
+			array_merge(
+				self::line_ids( (array) ( $current['groups'] ?? [] ) ),
+				ProposalBuilder::generatable_ids( $survey_id )
+			)
+		);
 		$after  = self::line_ids( $groups );
 
 		$dismissed = array_filter( array_map( 'strval', (array) ( $current['dismissed'] ?? [] ) ) );

@@ -355,14 +355,63 @@ resolver before concluding anything about deployment state.
 | 3 Field app (REST CRUD, React form, panels, autosave) | done, deployed |
 | 4 Photos | done, deployed |
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
-| 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | **built locally, NOT YET DEPLOYED** |
+| 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish | not started |
-| 8 Deploy | per-phase; 0.5.0 is what is live right now |
+| 8 Deploy | per-phase; 0.6.0 is what is live right now |
 
-Production was last verified live at 0.5.0: all 10 `paumalu/v1` routes present, `/survey/` 302s to
-login, `/catalog` 401s anonymously, `POST /surveys/1/accept` 404s to a stranger, served assets
-byte-identical to local, no `http://` URLs in served HTML, plugin PHP files return 200 with a
+Production was verified live at 0.6.0: plugin active at 0.6.0, all **14** `paumalu/v1` routes
+present, all 6 rewrite rules in the `rewrite_rules` option, the landing page served at `/` with
+`noindex`, `/survey/` 302ing to login under `no-store, private`, and a bad proposal token 404ing —
+also under `no-store`, which matters because WP Super Cache must never write a proposal page to disk.
+Earlier at 0.5.0: `/catalog` 401s anonymously, `POST /surveys/1/accept` 404s to a stranger, served
+assets byte-identical to local, no `http://` URLs in served HTML, plugin PHP files return 200 with a
 zero-byte body (the ABSPATH guard executing rather than leaking source).
+
+A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
+over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
+form present, `no-store` header, zero rows left behind. That is the whole customer path proven in the
+real environment, not only under the test harness.
+
+**Note on wp-cli here:** the default `wp` on this host runs PHP 8.2, but the plugin targets 8.3.
+Prefix with `WP_CLI_PHP=/usr/local/php83/bin/php`. To reinstall caps and flush rewrites after a
+deploy, `wp eval "\Paumalu\SiteSurvey\Setup\Activator::activate();"` — safer than a
+deactivate/activate cycle, which flushes once with no rules registered.
+
+### Three real bugs the test suite caught before any customer saw them
+
+Written up because two of them are the kind of thing that comes back.
+
+1. **`'post_status' => 'any'` silently cannot see an accepted survey.** `WP_Query` resolves `any` to
+   every status *except* those registered `exclude_from_search => true`, and both custom statuses set
+   that flag. `Proposal::find_by_token()` used `any`, so it always returned `null` — meaning **no
+   emailed customer proposal link could ever have worked**, since a proposal is only sent once the
+   survey reaches `pe_accepted`. Fixed by adding `PostType\Statuses::all()` and asking for the list
+   explicitly. **Any future query against surveys must use `Statuses::all()`, never `'any'`.**
+2. **The PNG validator accepted magic bytes followed by garbage.** `getimagesizefromstring()` reads
+   the IHDR fields and believes them — it verifies neither the chunk CRC nor that any pixel data
+   follows, so eight valid magic bytes plus `"AAAA..."` came back as a legitimate
+   1094795585-pixel-square PNG. `Signature::decode_png()` now bounds dimensions at
+   `MAX_DIMENSION = 4000` **and then** calls `imagecreatefromstring()`, which is the only thing that
+   proves an image exists. Order matters: decoding before the bounds check would turn the hardening
+   step into a decompression bomb.
+3. **`regenerate()` resurrected lines the reviewer had deleted.** The docblock promised "a line he
+   deleted stays deleted", but the code only compared against the current groups, which cannot tell
+   "never seen" from "seen and thrown out". Josh removes an upgrade the customer already declined,
+   hits Refresh after a new finding, and the removed line is back in the document he then sends.
+   Fixed with a `dismissed` list on the document: `Proposal::sanitize()` records ids that vanished
+   from every bucket, drops any put back by hand, and `regenerate()` seeds its `seen` map from it.
+   Moving a line between buckets keeps its id, so re-prioritising is not read as deletion.
+
+### Test suites
+
+All under `tests/`, run with the local `php` against the wp-env database. 246 assertions, all green
+at 0.6.0: `proposal-test` 80, `review-test` 61, `photo-test` 40, `repository-test` 33, `rest-test` 32.
+
+Two harness gotchas before writing more: `rest_do_request()` with `set_param()` does **not** populate
+`get_json_params()`, so any endpoint reading the body needs
+`set_header( 'Content-Type', 'application/json' )` plus `set_body()` — see the `$post_json` helper in
+`proposal-test.php`. And `pre_wp_mail` is how the suite captures mail without sending; `$atts['to']`
+is a string, not an array.
 
 ### Just completed in the current session
 
@@ -378,17 +427,18 @@ zero-byte body (the ABSPATH guard executing rather than leaking source).
 - Proposal editor styles in `src/style.scss`; bundle rebuilt.
 - `/surveys/{id}/proposal/sign` `image` arg changed from required to optional, so the REST route
   agrees with the server-side rule that a typed name is a valid signature.
+- `tests/proposal-test.php` — 80 assertions across auto-draft, permissions, reviewer edits, photo
+  ownership, regenerate, send, token, signatures, immutability and on-site signing. This is what
+  surfaced the three bugs above.
+- Deployed 0.6.0 to production and re-ran the activator; verified live.
 
 ### Immediate next steps
 
-1. Write `tests/proposal-test.php` — builder output, `regenerate()` merge semantics, token
-   hashing/expiry, immutability after signing, photo-ownership rejection (a reviewer must not be able
-   to put another customer's attachment in a gallery served over a public link), PNG validation
-   including a polyglot, and the typed-name fallback.
-2. Extend `tests/e2e.mjs` through the proposal flow in a **mobile viewport**.
-3. Deploy 0.6.0 and flush rewrites so `/proposal/{token}/` resolves. Verify the landing page and
-   cache headers afterwards.
-4. Phase 7 — email polish.
+1. Extend `tests/e2e.mjs` through the proposal flow in a **mobile viewport** — local only, never
+   against production.
+2. Phase 7 — email polish: the proposal send template and the submit/changes notifications.
+3. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
+   are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
 

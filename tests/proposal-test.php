@@ -380,6 +380,43 @@ $check(
 	false
 );
 
+// The case above deletes from a proposal that has already been saved once. The common case is the
+// opposite and needs its own survey: Josh opens the screen, deletes a line out of the generated
+// draft he has never saved, and saves for the first time. There is no stored version to diff
+// against at that moment, so a dismissal worked out only from the stored copy would find nothing —
+// and the line would come back on the next Refresh. Caught by the browser run, not by the unit
+// tests, because the unit tests happened to save twice.
+[ , $fresh_created ] = $call( $tech, 'POST', $ns . '/surveys' );
+$fresh_id            = (int) $fresh_created['id'];
+
+$two_findings = $document;
+$two_findings['panels'][0]['items']['lc_rust_moisture'] = [ 'status' => 'fail', 'severity' => 'recommended' ];
+
+$call( $tech, 'PATCH', $ns . '/surveys/' . $fresh_id, [ 'data' => $two_findings ] );
+$call( $tech, 'POST', $ns . '/surveys/' . $fresh_id . '/submit' );
+$drain();
+
+[ , $first_look ] = $call( $reviewer, 'GET', $ns . '/surveys/' . $fresh_id . '/proposal' );
+$check( 'the untouched draft holds both findings', $first_look['saved'] ?? null, false );
+
+$first_edit = $first_look['proposal'];
+$first_edit['groups']['recommended'] = [];
+
+[ , $first_save ] = $post_json( $reviewer, $ns . '/surveys/' . $fresh_id . '/proposal', $first_edit );
+$check(
+	'a line deleted before the first save is still recorded as dismissed',
+	in_array( 'lc_rust_moisture|panel-main', $first_save['proposal']['dismissed'] ?? [], true ),
+	true
+);
+
+[ , $first_refresh ] = $call( $reviewer, 'POST', $ns . '/surveys/' . $fresh_id . '/proposal/regenerate' );
+$check( 'and Refresh does not bring it back', $first_refresh['added_count'] ?? null, 0 );
+$check(
+	'so the bucket he emptied stays empty',
+	count( $first_refresh['proposal']['groups']['recommended'] ?? [] ),
+	0
+);
+
 // ---------------------------------------------------------------- 6. send.
 
 [ $status, $body ] = $call( $reviewer, 'POST', $ns . '/surveys/' . $survey_id . '/proposal/send' );

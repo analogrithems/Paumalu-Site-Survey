@@ -151,6 +151,27 @@ final class ProposalBuilder {
 	}
 
 	/**
+	 * Every line id this survey can currently produce.
+	 *
+	 * Used as the baseline for working out what the reviewer has thrown away. It has to be derived
+	 * rather than remembered, because the draft he edits is generated on read and never stored — so
+	 * before his first save there is no record anywhere of what he was shown.
+	 *
+	 * @return list<string>
+	 */
+	public static function generatable_ids( int $survey_id ): array {
+		$ids = [];
+
+		foreach ( self::draft( $survey_id )['groups'] as $lines ) {
+			foreach ( $lines as $line ) {
+				$ids[] = self::line_id( $line );
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
+	}
+
+	/**
 	 * Identity of a proposal line, for matching a draft against a regenerated one.
 	 *
 	 * Panel is part of it because the same item fails independently on each panel: "dead front
