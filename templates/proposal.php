@@ -31,7 +31,9 @@ $address   = trim( (string) ( $doc['customer']['address'] ?? '' ) );
 $date      = (string) ( $doc['inspection']['date'] ?? '' );
 $stamp     = '' !== $date ? strtotime( $date ) : false;
 $is_signed = Proposal::SIGNED === $proposal['status'];
-$declined  = Proposal::DECLINED === $proposal['status'];
+// Closed is what a decline becomes once a reviewer has read it and decided there is nothing more
+// to do — the customer never sees that distinction, so it renders exactly like a fresh decline.
+$declined  = in_array( $proposal['status'], [ Proposal::DECLINED, Proposal::CLOSED ], true );
 
 $logo_id  = (int) ( $settings['logo_id'] ?? 0 );
 $logo_url = $logo_id > 0 ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';

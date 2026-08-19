@@ -9,6 +9,7 @@ use Paumalu\SiteSurvey\Data\SurveyRepository;
 use Paumalu\SiteSurvey\Media\PhotoService;
 use Paumalu\SiteSurvey\PostType\Statuses;
 use Paumalu\SiteSurvey\PostType\SurveyPostType;
+use Paumalu\SiteSurvey\Proposal\Proposal;
 use Paumalu\SiteSurvey\Review\Notes;
 use Paumalu\SiteSurvey\Review\Workflow;
 use Paumalu\SiteSurvey\Setup\Capabilities;
@@ -392,8 +393,32 @@ final class SurveyController extends Controller {
 			if ( current_user_can( Capabilities::REVIEW ) ) {
 				$item['changes'] = Workflow::describe_changes( $post_id );
 			}
+
+			// A thin summary, not the whole proposal document — the survey screen has no business
+			// rendering customer-facing wording. This exists so a technician, who cannot open the
+			// proposal editor at all, still finds out the customer declined and what they said, the
+			// same way they already see a reviewer's "changes requested" note on their own survey.
+			$item['proposal'] = $this->proposal_summary( $post_id );
 		}
 
 		return $item;
+	}
+
+	/**
+	 * @return array<string, mixed>|null
+	 */
+	private function proposal_summary( int $post_id ): ?array {
+		if ( ! Proposal::exists( $post_id ) ) {
+			return null;
+		}
+
+		$proposal = Proposal::get( $post_id );
+
+		return [
+			'status'       => $proposal['status'],
+			'decline_note' => (string) ( $proposal['decline_note'] ?? '' ),
+			'declined_at'  => (string) ( $proposal['declined_at'] ?? '' ),
+			'closed_at'    => (string) ( $proposal['closed_at'] ?? '' ),
+		];
 	}
 }

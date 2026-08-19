@@ -194,6 +194,9 @@ export const api = {
 	sendProposal: ( surveyId, email = '' ) =>
 		request( `/surveys/${ surveyId }/proposal/send`, { method: 'POST', body: { email } } ),
 
+	closeProposal: ( surveyId ) =>
+		request( `/surveys/${ surveyId }/proposal/close`, { method: 'POST' } ),
+
 	signOnsite: ( surveyId, name, image ) =>
 		request( `/surveys/${ surveyId }/proposal/sign`, {
 			method: 'POST',

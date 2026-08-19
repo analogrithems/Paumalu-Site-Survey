@@ -782,6 +782,7 @@ body.pe-survey-body {
 	&--viewed { background: #ede0ff; color: #5b2ea6; }
 	&--signed { background: #dcf2e5; color: #10603a; }
 	&--declined { background: #ffe2df; color: #97231c; }
+	&--closed { background: #e8edf1; color: var(--pe-muted); }
 }
 
 .pe-proposal {

@@ -19,6 +19,18 @@ const GROUPS = [
 
 const MAX_PHOTOS = 4;
 
+// declined_at/closed_at come from current_time( 'mysql' ) — "YYYY-MM-DD HH:MM:SS" — which Safari
+// refuses to parse with the space intact. Swapping it for a 'T' is enough to make it ISO-shaped.
+function formatStamp( mysql ) {
+	if ( ! mysql ) {
+		return '';
+	}
+
+	const date = new Date( mysql.replace( ' ', 'T' ) );
+
+	return Number.isNaN( date.getTime() ) ? '' : date.toLocaleDateString();
+}
+
 function Line( { line, index, group, total, onChange, onRemove, onMove, onReorder } ) {
 	return (
 		<li className="pe-pline">
@@ -244,6 +256,15 @@ export default function ProposalEditor( { route, navigate } ) {
 			return next;
 		} );
 
+	const close = () =>
+		run( 'close', async () => {
+			const next = await api.closeProposal( surveyId );
+
+			setState( next );
+
+			return next;
+		} );
+
 	const send = async () => {
 		// Sending an older version than the one on screen is the kind of mistake that is invisible
 		// until the customer replies about something Josh thought he had deleted.
@@ -311,8 +332,15 @@ export default function ProposalEditor( { route, navigate } ) {
 
 	const { proposal, photos, link } = state;
 	const isSigned = proposal.status === 'signed';
+	const isDeclined = proposal.status === 'declined';
+	const isClosed = proposal.status === 'closed';
+	// Closed is a second lock alongside signed: both are terminal, both freeze the document, they
+	// just get there by opposite outcomes. Declined is deliberately not locked — editing and
+	// resending it is exactly how a resubmission happens.
+	const isLocked = isSigned || isClosed;
 	const isAccepted = survey.status === 'pe_accepted';
 	const count = GROUPS.reduce( ( sum, g ) => sum + ( proposal.groups[ g.key ]?.length || 0 ), 0 );
+	const declinedStamp = formatStamp( proposal.declined_at );
 
 	return (
 		<div className="pe-proposal">
@@ -361,6 +389,49 @@ export default function ProposalEditor( { route, navigate } ) {
 				</div>
 			) }
 
+			{ /* Not locked — editing and sending again is exactly how a resubmission happens. Close is
+			     offered here rather than assumed, because "the customer said no" and "there is nothing
+			     more to do here" are different facts, and only a reviewer who has read the note can
+			     tell them apart. */ }
+			{ isDeclined && (
+				<div className="pe-banner pe-banner--warn" role="alert">
+					<p>
+						<strong>{ 'The customer declined this proposal.' }</strong>
+						{ !! declinedStamp && ` ${ declinedStamp }.` }
+					</p>
+					{ proposal.decline_note ? (
+						<p className="pe-note__body">{ `“${ proposal.decline_note }”` }</p>
+					) : (
+						<p className="pe-banner__note">{ 'No reason was given.' }</p>
+					) }
+					<p className="pe-banner__note">
+						{ 'Edit the plan above and send it again to resubmit, or close it out if there is nothing more to do.' }
+					</p>
+					<div className="pe-banner__actions">
+						<button
+							type="button"
+							className="pe-btn"
+							onClick={ close }
+							disabled={ !! busy }
+						>
+							{ busy === 'close' ? 'Closing…' : 'Close — no follow-up' }
+						</button>
+					</div>
+				</div>
+			) }
+
+			{ isClosed && (
+				<div className="pe-banner pe-banner--ok" role="status">
+					<p>
+						<strong>{ 'Closed.' }</strong>
+						{ ' The customer was not interested — no follow-up needed.' }
+					</p>
+					{ !! proposal.decline_note && (
+						<p className="pe-banner__note">{ `They said: “${ proposal.decline_note }”` }</p>
+					) }
+				</div>
+			) }
+
 			{ error && <p className="pe-error">{ error.message }</p> }
 
 			{ sentTo && (
@@ -369,7 +440,7 @@ export default function ProposalEditor( { route, navigate } ) {
 				</div>
 			) }
 
-			<fieldset className="pe-proposal__body" disabled={ isSigned }>
+			<fieldset className="pe-proposal__body" disabled={ isLocked }>
 				<label className="pe-field">
 					<span className="pe-field__label">{ 'Opening note to the customer' }</span>
 					<textarea
@@ -476,7 +547,7 @@ export default function ProposalEditor( { route, navigate } ) {
 				</section>
 			</fieldset>
 
-			{ ! isSigned && (
+			{ ! isLocked && (
 				<label className="pe-field pe-proposal__email">
 					<span className="pe-field__label">{ 'Send to' }</span>
 					<input
@@ -490,7 +561,7 @@ export default function ProposalEditor( { route, navigate } ) {
 				</label>
 			) }
 
-			{ ! isSigned && (
+			{ ! isLocked && (
 				<div className="pe-proposal__actions">
 					<button
 						type="button"
@@ -529,7 +600,7 @@ export default function ProposalEditor( { route, navigate } ) {
 				</div>
 			) }
 
-			{ link?.active && ! isSigned && (
+			{ link?.active && ! isLocked && (
 				<p className="pe-proposal__link">
 					{ `A live link is out with the customer, valid until ${ new Date(
 						link.expires
@@ -569,7 +640,7 @@ export default function ProposalEditor( { route, navigate } ) {
 
 			{ /* Only once there is something saved to sign. Offering the pad against an unsaved draft
 			     invites a signature on a document that does not exist yet. */ }
-			{ state.saved && isAccepted && ! isSigned && (
+			{ state.saved && isAccepted && ! isLocked && (
 				<section className="pe-pgroup pe-proposal__onsite">
 					<h2 className="pe-pgroup__title">{ 'Sign on site' }</h2>
 					<p className="pe-pgroup__hint">

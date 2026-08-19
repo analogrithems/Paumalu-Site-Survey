@@ -29,6 +29,7 @@ final class Proposal {
 	public const VIEWED   = 'viewed';
 	public const SIGNED   = 'signed';
 	public const DECLINED = 'declined';
+	public const CLOSED   = 'closed';
 
 	public const IMMEDIATE   = 'immediate';
 	public const RECOMMENDED = 'recommended';
@@ -49,6 +50,7 @@ final class Proposal {
 			self::VIEWED   => __( 'Viewed', 'paumalu-site-survey' ),
 			self::SIGNED   => __( 'Signed', 'paumalu-site-survey' ),
 			self::DECLINED => __( 'Declined', 'paumalu-site-survey' ),
+			self::CLOSED   => __( 'Closed', 'paumalu-site-survey' ),
 		];
 	}
 
@@ -118,6 +120,14 @@ final class Proposal {
 			return new \WP_Error(
 				'pe_proposal_signed',
 				__( 'This proposal has been signed and can no longer be edited.', 'paumalu-site-survey' ),
+				[ 'status' => 409 ]
+			);
+		}
+
+		if ( self::CLOSED === $current['status'] ) {
+			return new \WP_Error(
+				'pe_proposal_closed',
+				__( 'This proposal has been closed and can no longer be edited.', 'paumalu-site-survey' ),
 				[ 'status' => 409 ]
 			);
 		}
@@ -408,5 +418,32 @@ final class Proposal {
 		 * @param int $survey_id Survey id.
 		 */
 		do_action( 'pe_proposal_viewed', $survey_id );
+	}
+
+	/**
+	 * Close a declined proposal: a reviewer has read the customer's decline note and decided this is
+	 * not going to be resubmitted.
+	 *
+	 * Kept separate from DECLINED rather than reusing it, because "declined" on its own does not say
+	 * whether anybody has looked at it yet. A customer who left a note asking to revisit pricing once
+	 * a permit clears should not sit in the same bucket, indistinguishable in the queue, as one who
+	 * is simply no longer interested. Closing is the reviewer's way of saying "read, and there is
+	 * nothing more to do here" — only reachable from DECLINED, since closing a proposal nobody has
+	 * declined does not mean anything, and a signed one already has its own lock.
+	 *
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	public static function close( int $survey_id ): array|\WP_Error {
+		$proposal = self::get( $survey_id );
+
+		if ( self::DECLINED !== $proposal['status'] ) {
+			return new \WP_Error(
+				'pe_not_declined',
+				__( 'Only a declined proposal can be closed.', 'paumalu-site-survey' ),
+				[ 'status' => 409 ]
+			);
+		}
+
+		return self::set_status( $survey_id, self::CLOSED );
 	}
 }

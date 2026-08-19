@@ -168,6 +168,14 @@ final class Signature {
 			);
 		}
 
+		if ( Proposal::CLOSED === $proposal['status'] ) {
+			return new \WP_Error(
+				'pe_already_closed',
+				__( 'This proposal has been closed.', 'paumalu-site-survey' ),
+				[ 'status' => 409 ]
+			);
+		}
+
 		$proposal['status']       = Proposal::DECLINED;
 		$proposal['declined_at']  = current_time( 'mysql' );
 		$proposal['decline_note'] = sanitize_textarea_field( trim( $reason ) );

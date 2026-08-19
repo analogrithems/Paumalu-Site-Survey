@@ -65,6 +65,22 @@ final class ProposalController extends Controller {
 			]
 		);
 
+		// Closing is a reviewer decision, not a customer action — the customer only ever declines.
+		// Reachable once a proposal is declined, so a reviewer who has read the note can say "nothing
+		// more to do here" rather than leaving it sitting as an open question in the queue.
+		register_rest_route(
+			self::API_NAMESPACE,
+			'/surveys/(?P<id>\d+)/proposal/close',
+			[
+				'args' => $id_arg,
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ $this, 'close_proposal' ],
+					'permission_callback' => [ $this, 'check_reviewer' ],
+				],
+			]
+		);
+
 		register_rest_route(
 			self::API_NAMESPACE,
 			'/surveys/(?P<id>\d+)/proposal/send',
@@ -257,6 +273,26 @@ final class ProposalController extends Controller {
 		$state['added_count']   = (int) ( $merged['added_count'] ?? 0 );
 
 		return rest_ensure_response( $state );
+	}
+
+	/**
+	 * Mark a declined proposal closed: read, and nothing more to do here.
+	 */
+	public function close_proposal( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$post = $this->get_survey( (int) $request->get_param( 'id' ) );
+
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+
+		$survey_id = (int) $post->ID;
+		$closed    = Proposal::close( $survey_id );
+
+		if ( is_wp_error( $closed ) ) {
+			return $closed;
+		}
+
+		return rest_ensure_response( $this->state( $survey_id, $closed ) );
 	}
 
 	/**

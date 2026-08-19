@@ -422,6 +422,29 @@ export default function SurveyForm( { route, catalog, navigate } ) {
 				</div>
 			) }
 
+			{ /* Read-only for a technician: they cannot open the proposal editor, but they should
+			     still know the customer said no and why, in case it changes something about a
+			     follow-up call. A reviewer decides separately whether this needs closing out. */ }
+			{ survey.proposal?.status === 'declined' && ! survey.can.review && (
+				<div className="pe-banner pe-banner--warn">
+					<p>
+						<strong>{ 'The customer declined this proposal.' }</strong>
+					</p>
+					{ survey.proposal.decline_note && (
+						<p className="pe-note__body">{ `“${ survey.proposal.decline_note }”` }</p>
+					) }
+				</div>
+			) }
+
+			{ survey.proposal?.status === 'closed' && ! survey.can.review && (
+				<div className="pe-banner pe-banner--ok" role="status">
+					<p>
+						<strong>{ 'This proposal is closed.' }</strong>
+						{ ' The customer was not interested — no follow-up needed.' }
+					</p>
+				</div>
+			) }
+
 			<div className="pe-form__head">
 				<div>
 					<h1>{ doc.customer?.name || 'New survey' }</h1>

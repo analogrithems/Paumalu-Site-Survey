@@ -686,6 +686,85 @@ $check( 'the stored intro is untouched', Proposal::get( $survey_id )['intro'], '
 $declined = Signature::decline( $survey_id, 'Changed my mind' );
 $check( 'a signed proposal cannot then be declined', is_wp_error( $declined ), true );
 
+// -------------------------------------------------- 9b. decline and close.
+
+$third = (int) $call( $tech, 'POST', $ns . '/surveys' )[1]['id'];
+$call( $tech, 'PATCH', $ns . '/surveys/' . $third, [ 'data' => $document ] );
+$call( $tech, 'POST', $ns . '/surveys/' . $third . '/submit' );
+$call( $reviewer, 'POST', $ns . '/surveys/' . $third . '/accept' );
+$drain();
+
+$not_yet = Proposal::close( $third );
+$check(
+	'closing a proposal that was never sent is refused',
+	is_wp_error( $not_yet ) ? $not_yet->get_error_code() : '',
+	'pe_not_declined'
+);
+
+[ , $third_state ] = $call( $reviewer, 'GET', $ns . '/surveys/' . $third . '/proposal' );
+$post_json( $reviewer, $ns . '/surveys/' . $third . '/proposal', $third_state['proposal'] );
+$call( $reviewer, 'POST', $ns . '/surveys/' . $third . '/proposal/send' );
+$drain();
+
+$not_declined = Proposal::close( $third );
+$check(
+	'closing a proposal that is only sent, not declined, is refused',
+	is_wp_error( $not_declined ) ? $not_declined->get_error_code() : '',
+	'pe_not_declined'
+);
+
+$declined_proposal = Signature::decline( $third, 'Money is tight right now — maybe next year.' );
+$check( 'declining records the note', $declined_proposal['decline_note'] ?? '', 'Money is tight right now — maybe next year.' );
+$check( 'and moves the proposal to declined', $declined_proposal['status'] ?? '', Proposal::DECLINED );
+
+$decline_mail = $drain();
+$check( 'declining notifies the company', count( $decline_mail ) >= 1, true );
+
+// The technician has no proposal-editor access at all, so the survey response is the only place
+// they can learn the customer said no — the same reasoning that already surfaces a reviewer's
+// "changes requested" note on their own survey.
+[ , $tech_view ] = $call( $tech, 'GET', $ns . '/surveys/' . $third );
+$check( 'a technician can see the proposal was declined', $tech_view['proposal']['status'] ?? '', Proposal::DECLINED );
+$check(
+	'and can read the customer\'s note',
+	$tech_view['proposal']['decline_note'] ?? '',
+	'Money is tight right now — maybe next year.'
+);
+
+[ $status ] = $call( $tech, 'POST', $ns . '/surveys/' . $third . '/proposal/close' );
+$check( 'a technician cannot close a proposal', $status, 403 );
+
+$still_declined = Proposal::get( $third );
+$check( 'and it is still just declined', $still_declined['status'], Proposal::DECLINED );
+
+[ $status, $closed_body ] = $call( $reviewer, 'POST', $ns . '/surveys/' . $third . '/proposal/close' );
+$check( 'a reviewer can close a declined proposal', $status, 200 );
+$check( 'which moves it to closed', $closed_body['proposal']['status'] ?? '', Proposal::CLOSED );
+$check( 'with a timestamp recorded', '' !== ( $closed_body['proposal']['closed_at'] ?? '' ), true );
+
+$closed_rewrite          = Proposal::get( $third );
+$closed_rewrite['intro'] = 'Quietly changed after closing.';
+
+$closed_edit = Proposal::save( $third, $closed_rewrite );
+$check(
+	'a closed proposal cannot be edited',
+	is_wp_error( $closed_edit ) ? $closed_edit->get_error_code() : '',
+	'pe_proposal_closed'
+);
+
+[ $status ] = $post_json( $reviewer, $ns . '/surveys/' . $third . '/proposal', $closed_rewrite );
+$check( 'and the REST route refuses it too', $status, 409 );
+
+$redecline = Signature::decline( $third, 'Trying again' );
+$check(
+	'a closed proposal cannot be declined again',
+	is_wp_error( $redecline ) ? $redecline->get_error_code() : '',
+	'pe_already_closed'
+);
+
+[ $status ] = $call( $reviewer, 'POST', $ns . '/surveys/' . $third . '/proposal/close' );
+$check( 'closing an already-closed proposal is refused too', $status, 409 );
+
 // ------------------------------------------------------- 10. on-site signing.
 
 $second = (int) $call( $tech, 'POST', $ns . '/surveys' )[1]['id'];
@@ -727,7 +806,7 @@ $check( 'a signature never appears in the photo picker', in_array( $signature_id
 
 // ----------------------------------------------------------------- cleanup.
 
-foreach ( [ $survey_id, $second, $other ] as $id ) {
+foreach ( [ $survey_id, $second, $third, $other ] as $id ) {
 	wp_delete_post( $id, true );
 }
 

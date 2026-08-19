@@ -1,7 +1,7 @@
 # Paumalu Site Survey — project context
 
 Handoff notes for anyone (human or agent) picking this up cold. Last updated 2026-08-19, plugin
-version **0.8.0**.
+version **0.9.0**.
 
 ---
 
@@ -76,9 +76,19 @@ Statuses: `draft` → `pending` (Ready for Review) → `pe_changes_req` → `pe_
 `publish_site_surveys` can move its own post to `pending` but no further — that *is* "submit for
 approval".
 
-The **proposal has its own lifecycle in meta** (`draft`/`sent`/`viewed`/`signed`/`declined`) rather
-than more post statuses. The survey's status is Josh's workflow; the proposal's is the customer's.
-Conflating them would have meant eight statuses describing two unrelated things.
+The **proposal has its own lifecycle in meta**
+(`draft`/`sent`/`viewed`/`signed`/`declined`/`closed`) rather than more post statuses. The survey's
+status is Josh's workflow; the proposal's is the customer's. Conflating them would have meant eight
+statuses describing two unrelated things.
+
+`declined` and `closed` are deliberately two different states, not one. A customer declining only
+records what they said — a reviewer still has to read it and decide whether it is worth
+resubmitting or is simply a no. `closed` is that decision made: reachable only from `declined`, via
+`Proposal::close()` / `POST .../proposal/close` (reviewer-only), and terminal — like a signed
+proposal, a closed one refuses further edits (`Proposal::save()`) and refuses being declined again
+(`Signature::decline()`). `declined` itself stays unlocked on purpose: editing the plan and hitting
+Send again *is* how a resubmission happens. The customer-facing page does not distinguish the two —
+both render as "not moving ahead" — the split exists for the review queue, not for them.
 
 Answers live in one JSON meta blob `_pe_survey_data`. A handful of flat metas sit alongside purely
 so the admin list table and future reporting can query without unpacking JSON: `_pe_customer_name`,
@@ -168,6 +178,7 @@ GET|POST /surveys/{id}/photos          PATCH|DELETE /photos/{id}
 GET|POST /surveys/{id}/proposal        (reviewer)
 POST   /surveys/{id}/proposal/regenerate (reviewer)
 POST   /surveys/{id}/proposal/send       (reviewer + pe_send_proposal)
+POST   /surveys/{id}/proposal/close      (reviewer — only once the proposal is declined)
 POST   /surveys/{id}/proposal/sign       (anyone who can edit the survey — the tablet)
 ```
 
@@ -375,9 +386,9 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–7 are built,** plus a docs/dashboard pass and a self-update/release pass beyond the
-original plan. Version 0.7.1 is what is live in production right now; 0.8.0 is code-complete, tested
-locally, and queued to deploy this session.
+**Phases 1–10 are built and deployed,** plus a decline/close split beyond the original plan. Version
+**0.9.0** is code-complete and tested locally; 0.8.0 is what is live in production as of this
+session's deploy, and 0.9.0 is queued to ship the same way.
 
 | Phase | Status |
 |---|---|
@@ -388,9 +399,10 @@ locally, and queued to deploy this session.
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
-| 8 Deploy | per-phase; 0.7.1 is what is live right now |
+| 8 Deploy | per-phase; 0.8.0 is what is live right now |
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
-| 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done locally, deploying as 0.8.0 |
+| 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done, deployed as 0.8.0 |
+| 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done locally, queued to deploy as 0.9.0 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
@@ -435,6 +447,13 @@ Deployed 0.7.1 (plugin metadata only): added `Plugin URI` (the GitHub repo) and 
 correctly — verified via `get_plugin_data()` locally before deploying. No code paths changed; same
 rsync + verify pattern as above.
 
+Deployed 0.8.0 (self-update + email log): pushed to `main`, tagged `v0.8.0` and pushed the tag,
+which `.github/workflows/release.yml` picked up and published as a GitHub Release with the built
+zip attached. Aaron deployed it to production manually the same session. This is the first release
+to go out through the GitHub Releases pipeline documented in [DEVELOPER.md](DEVELOPER.md) rather
+than rsync — every site running the plugin (this one included) now checks that release feed for
+updates instead of needing a manual SFTP/SSH step.
+
 A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
 over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
 form present, `no-store` header, zero rows left behind. That is the whole customer path proven in the
@@ -472,8 +491,10 @@ Written up because two of them are the kind of thing that comes back.
 
 ### Test suites
 
-All under `tests/`, run with the local `php` against the wp-env database. 246 assertions, all green
-at 0.6.0: `proposal-test` 80, `review-test` 61, `photo-test` 40, `repository-test` 33, `rest-test` 32.
+All under `tests/`, run with the local `php` against the wp-env database. 285 assertions, all green
+as of 0.9.0: `proposal-test` 119 (includes the decline/close split — a technician reading the
+customer's note off the survey response, a reviewer closing it, both refusing anyone/anything else),
+`review-test` 61, `photo-test` 40, `repository-test` 33, `rest-test` 32.
 
 Two harness gotchas before writing more: `rest_do_request()` with `set_param()` does **not** populate
 `get_json_params()`, so any endpoint reading the body needs
@@ -483,47 +504,75 @@ is a string, not an array.
 
 ### Just completed in the current session
 
-- `Frontend/Landing.php` + `templates/landing.php` — the public signpost at `/`. Verified locally:
-  root renders it, `/survey/` still serves the app when authenticated, `/proposal/{bad}` still 404s.
-  Two guards matter and both are load-bearing: the app's rewrites resolve to `index.php` with only a
-  custom query var, so WordPress thinks `is_front_page()` is true on `/survey/` too; and it steps
-  aside entirely if `show_on_front` is ever set to a real page.
-- `src/components/ProposalEditor.js` mounted in `App.js` on `route.name === 'proposal'`, loading its
-  own survey so it can show the customer name and refuse to offer Send until the survey is accepted.
-- `src/components/SignaturePad.js` — on-site signing inside the app.
-- "Build the proposal" entry point in `ReviewPanel`, shown once the survey is accepted.
-- Proposal editor styles in `src/style.scss`; bundle rebuilt.
-- `/surveys/{id}/proposal/sign` `image` arg changed from required to optional, so the REST route
-  agrees with the server-side rule that a typed name is a valid signature.
-- `tests/proposal-test.php` — 80 assertions across auto-draft, permissions, reviewer edits, photo
-  ownership, regenerate, send, token, signatures, immutability and on-site signing. This is what
-  surfaced the three bugs above.
-- Deployed 0.6.0 to production and re-ran the activator; verified live.
+- **Decline/close split** (0.9.0, not yet deployed — see phase 11 above). `Proposal::CLOSED` added
+  alongside `DECLINED`; `Proposal::close()` transitions declined → closed and is only reachable that
+  way; `Proposal::save()` and `Signature::decline()` both now also refuse once closed, the same way
+  they already refused once signed. New route `POST /surveys/{id}/proposal/close`
+  (`ProposalController::close_proposal()`), reviewer-only.
+- `ProposalEditor.js` now shows the decline note (with a "Close — no follow-up" button) when
+  declined, and a locked "closed, no follow-up needed" banner when closed — `isLocked` (signed OR
+  closed) replaces the old signed-only checks for disabling the form and hiding Save/Send.
+- The survey REST response (`SurveyController::prepare_item()`) now carries a thin `proposal`
+  summary (`status`, `decline_note`, `declined_at`, `closed_at`) whenever a proposal exists, single-
+  survey loads only. This is what lets a **technician** — who has no access to the proposal editor
+  at all — see the decline note on their own survey page (`SurveyForm.js`), the same way they already
+  see a reviewer's "changes requested" note.
+- `templates/proposal.php`: the customer-facing page treats `declined` and `closed` identically (both
+  render as "not moving ahead") — the split is for the review queue, the customer never sees it.
+- `tests/proposal-test.php` grew from 80 to 119 assertions covering all of the above, including that
+  closing refuses from every state except declined, and that a technician/reviewer permission split
+  is enforced on the close route.
+- Version bumped to 0.9.0. Not yet deployed — queued for the next release alongside this doc update.
+- **0.8.0 deployed**: Aaron pushed to `main`, tagged `v0.8.0`, and it went out through the GitHub
+  Releases pipeline for the first time, then was deployed to production manually the same session
+  (see the 0.8.0 deploy note above).
 
 ### Dependency hygiene
 
-GitHub Dependabot flagged 39 alerts, all in `package-lock.json`, all `devDependencies` (build
-tooling only — `npm audit --omit=dev` was 0 both before and after, and none of it ships in the
-plugin `.distignore` excludes `node_modules`). Bumped `@wordpress/env` 10→11.13 and
-`@wordpress/scripts` 30→34.1, plus targeted `overrides` for `uuid`, `linkify-it`, `markdown-it`,
-`serialize-javascript`, `adm-zip`, and `minimatch`, which closed 19 of the 39. That upgrade requires
-**Node 20+** (`.nvmrc` added) — `serialize-javascript@7.x` needs the Web Crypto global Node only
-exposes unflagged from v19, and `npm run build` fails with `ReferenceError: crypto is not defined`
-under Node 18. `npm run build` was re-verified working under Node 20; the emitted `build/index.js`
-is byte-identical (webpack's `[compared for emit]`), so this did not touch the shipped bundle.
+**Dependabot: 0 open alerts as of this session's check** (`gh api
+repos/analogrithems/Paumalu-Site-Survey/dependabot/alerts`). Of the 22 total alerts the repo has ever
+had: 20 are `fixed` (see the `@wordpress/env`/`@wordpress/scripts` bump and `overrides` below), 1 is
+`auto_dismissed` (`@opentelemetry/core` — the vulnerable version fell out of the tree on its own), and
+1 is `dismissed` (`extract-zip`, GHSA-jmr9-qjv8-65gv — see below). Nothing needs action.
 
-The remaining ~20 alerts are all nested inside `@wordpress/env`'s own optional tooling (`puppeteer`,
-`lighthouse`, `@sentry/node`, `@opentelemetry/*` — used by `wp-env`'s own test/telemetry
-subcommands, which this project never calls) plus `extract-zip`, which has **no patched version
-published yet** (GHSA-jmr9-qjv8-65gv). None of it is reachable from `npm run build`/`start`/`lint:js`
-or from anything deployed. Not forcing further overrides there — the risk of breaking `wp-env`'s own
-zip-extraction path outweighs closing alerts on code we never execute.
+Earlier work, for context: bumped `@wordpress/env` 10→11.13 and `@wordpress/scripts` 30→34.1, plus
+targeted `overrides` for `uuid`, `linkify-it`, `markdown-it`, `serialize-javascript`, `adm-zip`, and
+`minimatch`, which closed 19 of the original 39 alerts (the other 20 fixed themselves once
+`extract-zip`'s parent tooling moved on). That upgrade requires **Node 20+** (`.nvmrc` added) —
+`serialize-javascript@7.x` needs the Web Crypto global Node only exposes unflagged from v19, and
+`npm run build` fails with `ReferenceError: crypto is not defined` under Node 18. `npm run build` was
+re-verified working under Node 20; the emitted `build/index.js` is byte-identical (webpack's
+`[compared for emit]`), so this did not touch the shipped bundle.
 
-Known side effect: `npm run lint:js` currently crashes on a pre-existing upstream bug in
-`@wordpress/eslint-plugin@25.9.0`'s `no-unknown-ds-tokens` rule (`ERR_REQUIRE_ESM` on its own
-`design-tokens.mjs`) — unrelated to this change, not a security issue, not fixed by pinning to an
-older `@wordpress/eslint-plugin` version since it ships bundled inside `@wordpress/scripts`. Doesn't
-block `build`/`start`, so left as-is; worth a retry once WordPress ships a patch.
+`extract-zip` (nested inside `@wordpress/env`'s own zip-extraction path, never reachable from
+`npm run build`/`start`/`lint:js` or from anything deployed) still has **no patched version
+published** (GHSA-jmr9-qjv8-65gv) — it is dismissed rather than fixed for that reason, not ignored.
+Not forcing an override there — the risk of breaking `wp-env`'s own extraction path outweighs closing
+an alert on code this project never executes.
+
+**`npm run lint:js` — checked again this session against Aaron's WordPress 7.1 upgrade; still
+crashes, for a different reason than previously documented here.** The WordPress *core* version and
+the `@wordpress/scripts`/`@wordpress/eslint-plugin` *npm packages* are on separate release trains —
+bumping the site's WP core does not touch what `npm install` resolves, and `npm view` confirms
+34.1.0 / 25.9.0 are still the latest published versions of both. So the core upgrade could not have
+fixed this, and didn't. The actual crash (`TypeError: (0, _minimatch.default) is not a function` in
+`eslint-plugin-jsx-a11y`'s `label-has-associated-control` rule, not the previously-documented
+`no-unknown-ds-tokens`/`ERR_REQUIRE_ESM` one — that one is gone, presumably fixed by an earlier
+`@wordpress/scripts` bump) turned out to be a side effect of the `minimatch` override above:
+`eslint-plugin-jsx-a11y` depends on `minimatch@^3.1.2`'s callable-CJS-export shape, and the blanket
+override forces `minimatch@10.x`, which is ESM and breaks that. **Fixed** with a scoped override
+rather than a blanket one — `package.json`'s `overrides` now reads:
+```json
+"minimatch": "^10.2.3",
+"eslint-plugin-jsx-a11y": { "minimatch": "^3.1.4" }
+```
+`^3.1.4` satisfies jsx-a11y's own declared range *and* is patched against all three minimatch
+advisories the blanket override was added for (their fixed-in versions are 3.1.3/3.1.4, not just
+10.x — checked against the advisories directly), so this does not reopen anything Dependabot has
+flagged. `npm run lint:js` now runs to completion — 696 pre-existing style findings (prettier
+formatting, a couple of `no-console`), not a crash. Not fixing those 696 in this pass; that's a
+separate, purely cosmetic cleanup with no functional risk. `npm run build` re-verified unaffected
+(webpack's `[compared for emit]` — byte-identical output).
 
 ### wp-admin review link went to a blank screen
 
@@ -552,13 +601,20 @@ matching the server-side rule. See `DEVELOPER.md` for how to run the suite.
 
 Still open:
 
-1. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
+1. Deploy 0.9.0 (decline/close split) the same way 0.8.0 went out: bump already done, needs commit,
+   push, tag `v0.9.0`, and — once the GitHub Release publishes — the manual production deploy.
+2. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
    are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
 
 - Hawaii contractor license number, logo, and business mailing address for the proposal footer.
-- Whether declined proposals need a follow-up workflow or just a status.
+
+**Answered (2026-08-19):** declined proposals do need a resubmission path, not just a status — see
+the `declined`/`closed` split described in §3 above. A customer's decline note is now surfaced to
+both the reviewer (who can edit the plan and resend) and the technician (read-only, on their own
+survey page). A reviewer marks it `closed` when the customer is simply no longer interested, which
+locks it the same way a signed proposal is locked — no further edits, no follow-up expected.
 
 Reviewer notifications are **not** tied to one named person — any account with the `editor` role (or
 above) is a reviewer, and `Notifications::reviewer_emails()` picks up every such account automatically
