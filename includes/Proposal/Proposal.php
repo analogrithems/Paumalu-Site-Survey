@@ -76,6 +76,8 @@ final class Proposal {
 				self::OPTIONAL    => [],
 			],
 			'photos'       => [],
+			// Line ids the reviewer has taken out. Kept so regenerating does not put them back.
+			'dismissed'    => [],
 			'generated_at' => '',
 		];
 	}
@@ -178,10 +180,60 @@ final class Proposal {
 			$groups[ $bucket ] = $groups[ $bucket ] ?? [];
 		}
 
-		$clean['groups'] = $groups;
-		$clean['photos'] = self::sanitize_photos( (array) ( $incoming['photos'] ?? [] ), $survey_id );
+		$clean['groups']    = $groups;
+		$clean['dismissed'] = self::track_dismissals( $current, $groups );
+		$clean['photos']    = self::sanitize_photos( (array) ( $incoming['photos'] ?? [] ), $survey_id );
 
 		return $clean;
+	}
+
+	/**
+	 * Remember which generated lines the reviewer has removed.
+	 *
+	 * Worked out by diffing rather than asking the client to send a list, so it cannot fall out of
+	 * step with what is actually in the document — and so an older copy of the app, or a request
+	 * assembled by hand, still records the intent correctly.
+	 *
+	 * Only catalog-derived lines are tracked. A custom line is never regenerated, so it can never
+	 * come back and does not need remembering; and every custom line shares the same empty line id,
+	 * which would make one deletion look like all of them.
+	 *
+	 * @param array<string, mixed>              $current
+	 * @param array<string, list<array<mixed>>> $groups
+	 * @return list<string>
+	 */
+	private static function track_dismissals( array $current, array $groups ): array {
+		$before = self::line_ids( (array) ( $current['groups'] ?? [] ) );
+		$after  = self::line_ids( $groups );
+
+		$dismissed = array_filter( array_map( 'strval', (array) ( $current['dismissed'] ?? [] ) ) );
+
+		// Gone from every bucket means removed. Moving a line between buckets keeps its id, so a
+		// re-prioritisation is not mistaken for a deletion.
+		$dismissed = array_merge( $dismissed, array_diff( $before, $after ) );
+
+		// And a line put back by hand is no longer dismissed, so Refresh can find it again later.
+		return array_values( array_unique( array_diff( $dismissed, $after ) ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $groups
+	 * @return list<string>
+	 */
+	private static function line_ids( array $groups ): array {
+		$ids = [];
+
+		foreach ( $groups as $lines ) {
+			foreach ( (array) $lines as $line ) {
+				if ( ! is_array( $line ) || '' === (string) ( $line['key'] ?? '' ) ) {
+					continue;
+				}
+
+				$ids[] = ProposalBuilder::line_id( $line );
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
 	}
 
 	/**

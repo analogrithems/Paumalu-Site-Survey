@@ -313,7 +313,7 @@ $check( 'the same photo cannot be added twice', count( $saved['proposal']['photo
 
 // A finding added after the draft was written must arrive without trampling the reworded copy.
 $grown = $document;
-$grown['panels'][0]['items']['lc_cover_secure'] = [ 'status' => 'fail', 'severity' => 'recommended' ];
+$grown['panels'][0]['items']['lc_rust_moisture'] = [ 'status' => 'fail', 'severity' => 'recommended' ];
 
 $call( $tech, 'PATCH', $ns . '/surveys/' . $survey_id, [ 'data' => $grown ] );
 
@@ -328,12 +328,57 @@ $check(
 $check( 'the custom line survives', count( $after['proposal']['groups']['recommended'] ), 2 );
 
 // A line the reviewer deleted must stay deleted, or Refresh becomes a button nobody dares press.
-$pruned = $after['proposal'];
-array_splice( $pruned['groups']['recommended'], 0, 1 );
+$pruned  = $after['proposal'];
+$deleted = null;
+
+foreach ( $pruned['groups']['recommended'] as $index => $line ) {
+	if ( 'lc_rust_moisture' === ( $line['key'] ?? '' ) ) {
+		$deleted = $index;
+		break;
+	}
+}
+
+$check( 'the regenerated line is findable by its catalog key', null !== $deleted, true );
+array_splice( $pruned['groups']['recommended'], (int) $deleted, 1 );
 
 $post_json( $reviewer, $ns . '/surveys/' . $survey_id . '/proposal', $pruned );
 [ , $after ] = $call( $reviewer, 'POST', $ns . '/surveys/' . $survey_id . '/proposal/regenerate' );
 $check( 'a deleted line is not resurrected', $after['added_count'] ?? null, 0 );
+$check(
+	'and it is remembered as dismissed',
+	in_array( 'lc_rust_moisture|panel-main', $after['proposal']['dismissed'] ?? [], true ),
+	true
+);
+
+// Moving a line between buckets must not read as a deletion, or re-prioritising anything would
+// quietly stop it ever regenerating again.
+$moved = $after['proposal'];
+$line  = array_shift( $moved['groups']['immediate'] );
+$moved['groups']['optional'][] = $line;
+
+[ , $moved_back ] = $post_json( $reviewer, $ns . '/surveys/' . $survey_id . '/proposal', $moved );
+$check(
+	're-prioritising a line is not a deletion',
+	in_array( ProposalBuilder::line_id( $line ), $moved_back['proposal']['dismissed'] ?? [], true ),
+	false
+);
+
+// And putting a dismissed line back by hand clears the dismissal.
+$restored                              = $moved_back['proposal'];
+$restored['groups']['recommended'][]   = [
+	'key'    => 'lc_rust_moisture',
+	'panel'  => 'panel-main',
+	'source' => 'item',
+	'text'   => 'Rust and moisture in the main panel enclosure.',
+	'photos' => [],
+];
+
+[ , $restored_state ] = $post_json( $reviewer, $ns . '/surveys/' . $survey_id . '/proposal', $restored );
+$check(
+	'restoring a dismissed line clears the dismissal',
+	in_array( 'lc_rust_moisture|panel-main', $restored_state['proposal']['dismissed'] ?? [], true ),
+	false
+);
 
 // ---------------------------------------------------------------- 6. send.
 
@@ -353,7 +398,7 @@ $check( 'but the token itself is never handed back to the app', isset( $sent['li
 
 $outbound = $drain();
 $check( 'one email left the building', count( $outbound ), 1 );
-$check( 'addressed to the customer', $outbound[0]['to'] ?? [], [ 'malia@example.test' ] );
+$check( 'addressed to the customer', (array) ( $outbound[0]['to'] ?? [] ), [ 'malia@example.test' ] );
 
 preg_match( '#/proposal/([a-f0-9]{40})/#', (string) ( $outbound[0]['message'] ?? '' ), $found );
 $token = $found[1] ?? '';

@@ -117,6 +117,14 @@ final class ProposalBuilder {
 		$fresh = self::draft( $survey_id );
 		$seen  = [];
 
+		// A line the reviewer deleted is absent from the document, so the current groups alone cannot
+		// tell "never seen" from "seen and thrown out". Without the dismissed list, Refresh quietly
+		// undoes his editorial decisions — he removes an upgrade the customer already said no to, adds
+		// a new finding, and the removed line is back in the document he then sends.
+		foreach ( (array) ( $existing['dismissed'] ?? [] ) as $id ) {
+			$seen[ (string) $id ] = true;
+		}
+
 		foreach ( (array) ( $existing['groups'] ?? [] ) as $lines ) {
 			foreach ( (array) $lines as $line ) {
 				$seen[ self::line_id( (array) $line ) ] = true;
@@ -150,7 +158,7 @@ final class ProposalBuilder {
 	 *
 	 * @param array<string, mixed> $line
 	 */
-	private static function line_id( array $line ): string {
+	public static function line_id( array $line ): string {
 		return (string) ( $line['key'] ?? '' ) . '|' . (string) ( $line['panel'] ?? '' );
 	}
 

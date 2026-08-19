@@ -27,6 +27,16 @@ final class Signature {
 	 */
 	private const MAX_BYTES = 400000;
 
+	/**
+	 * Dimension bounds, checked before anything decodes the pixels.
+	 *
+	 * A pad on the largest tablet anybody will hand a customer is well under 4000px even at 3x. The
+	 * ceiling is here so a header claiming an enormous image is refused on the strength of the header,
+	 * before imagecreatefromstring() is asked to allocate for it — otherwise the last validation step
+	 * would itself be the decompression bomb.
+	 */
+	private const MAX_DIMENSION = 4000;
+
 	private const SIGNED_VIA = [ 'link', 'onsite' ];
 
 	/**
@@ -167,9 +177,10 @@ final class Signature {
 	 *
 	 * The checks are layered on purpose. The prefix match rejects a data URL claiming another type;
 	 * strict base64 decoding rejects padding tricks; the magic-byte check rejects a payload that
-	 * merely *claimed* to be a PNG in its header; and getimagesizefromstring() rejects a file whose
-	 * magic bytes were borrowed but whose contents are something else — the polyglot trick where a
-	 * valid image also parses as a script.
+	 * merely *claimed* to be a PNG in its header; getimagesizefromstring() plus a dimension bound
+	 * rejects an absurd or hostile header cheaply; and a real decode rejects everything left — a file
+	 * whose magic bytes were borrowed, a polyglot that also parses as a script, or eight good bytes
+	 * followed by nothing at all.
 	 *
 	 * @return string|\WP_Error
 	 */
@@ -207,6 +218,26 @@ final class Signature {
 		if ( false === $size || IMAGETYPE_PNG !== ( $size[2] ?? 0 ) ) {
 			return $invalid;
 		}
+
+		$width  = (int) ( $size[0] ?? 0 );
+		$height = (int) ( $size[1] ?? 0 );
+
+		if ( $width < 1 || $height < 1 || $width > self::MAX_DIMENSION || $height > self::MAX_DIMENSION ) {
+			return $invalid;
+		}
+
+		// getimagesizefromstring() is not the guarantee it looks like: it reads the IHDR fields and
+		// believes them, without verifying the chunk CRC or that any pixel data follows. Eight valid
+		// magic bytes followed by "AAAA..." is reported back as a legitimate 1094795585-pixel-square
+		// PNG. Only actually decoding proves there is an image here, so that is what we do — after
+		// the dimension check above has made decoding safe.
+		$image = @imagecreatefromstring( $binary );
+
+		if ( false === $image ) {
+			return $invalid;
+		}
+
+		imagedestroy( $image );
 
 		return $binary;
 	}
