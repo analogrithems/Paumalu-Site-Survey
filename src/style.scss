@@ -236,6 +236,15 @@ body.pe-survey-body {
 	border-radius: var(--pe-radius);
 }
 
+.pe-list__links {
+	margin: 24px 0 0;
+	text-align: center;
+	font-size: 13px;
+	color: var(--pe-muted);
+
+	a { color: inherit; }
+}
+
 /* -------------------------------------------------------------------- form. */
 
 .pe-form__head {
@@ -578,6 +587,7 @@ body.pe-survey-body {
 
 	&--warn { background: #fff3d6; border: 1px solid #e8c974; }
 	&--error { background: #ffe2df; border: 1px solid #e9a9a3; }
+	&--info { background: #e4eefc; border: 1px solid #a9c7ec; }
 }
 
 /* ------------------------------------------------------------------ review. */

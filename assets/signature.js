@@ -125,20 +125,12 @@
 	}
 
 	if ( form ) {
-		form.addEventListener( 'submit', function ( event ) {
-			if ( ! dirty ) {
-				event.preventDefault();
-
-				// Deliberately not a blocking alert(): the customer is on a phone and an alert is a
-				// modal they have to dismiss before they can see what it was about.
-				wrap.classList.add( 'is-missing' );
-				canvas.scrollIntoView( { behavior: 'smooth', block: 'center' } );
-
-				return;
-			}
-
-			wrap.classList.remove( 'is-missing' );
-			field.value = canvas.toDataURL( 'image/png' );
+		form.addEventListener( 'submit', function () {
+			// A drawn mark is better evidence, but it is not the thing that makes this a signature —
+			// see includes/Proposal/Signature.php. The typed name field already carries `required`,
+			// so that is the only hard gate; a pad left blank just means the field stays empty and the
+			// server records the signature as typed rather than drawn.
+			field.value = dirty ? canvas.toDataURL( 'image/png' ) : '';
 		} );
 	}
 

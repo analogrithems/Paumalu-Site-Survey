@@ -8,6 +8,7 @@ use Paumalu\SiteSurvey\Catalog\Catalog;
 use Paumalu\SiteSurvey\PostType\Statuses;
 use Paumalu\SiteSurvey\Rest\Controller;
 use Paumalu\SiteSurvey\Setup\Capabilities;
+use Paumalu\SiteSurvey\Setup\Links;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -301,6 +302,8 @@ final class Router {
 			'baseUrl'    => self::url(),
 			'logoutUrl'  => wp_logout_url( home_url() ),
 			'adminUrl'   => current_user_can( Capabilities::REVIEW ) ? admin_url( 'edit.php?post_type=pe_site_survey' ) : '',
+			'githubUrl'  => Links::GITHUB,
+			'docsUrl'    => Links::TECHNICIAN_GUIDE,
 			'catalogVersion' => Catalog::CURRENT_VERSION,
 			'statusLabels'   => Statuses::labels(),
 			'user'       => [

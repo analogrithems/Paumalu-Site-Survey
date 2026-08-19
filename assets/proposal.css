@@ -238,11 +238,6 @@ body.pp {
 	cursor: crosshair;
 }
 
-.pp-pad.is-missing .pp-pad__canvas {
-	border-color: var(--pp-immediate);
-	border-style: solid;
-}
-
 .pp-clear {
 	margin-top: 8px;
 	background: none;

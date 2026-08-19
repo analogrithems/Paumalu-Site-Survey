@@ -128,6 +128,24 @@ export default function SurveyList( { navigate } ) {
 					) ) }
 				</ul>
 			) }
+
+			{ /* Reviewers get the same links from wp-admin instead, so this stays technician-only —
+			     showing it twice would just be clutter for the role that already has it. */ }
+			{ ! boot.user?.isReviewer && ( boot.docsUrl || boot.githubUrl ) && (
+				<p className="pe-list__links">
+					{ boot.docsUrl && (
+						<a href={ boot.docsUrl } target="_blank" rel="noreferrer">
+							{ 'How to use this app' }
+						</a>
+					) }
+					{ boot.docsUrl && boot.githubUrl && ' \u00b7 ' }
+					{ boot.githubUrl && (
+						<a href={ boot.githubUrl } target="_blank" rel="noreferrer">
+							{ 'GitHub project' }
+						</a>
+					) }
+				</p>
+			) }
 		</div>
 	);
 }

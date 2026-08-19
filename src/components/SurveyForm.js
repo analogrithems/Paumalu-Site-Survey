@@ -437,8 +437,10 @@ export default function SurveyForm( { route, catalog, navigate } ) {
 				<ReviewPanel
 					survey={ survey }
 					changes={ changes }
+					notes={ notes }
 					onDecided={ onDecided }
 					navigate={ navigate }
+					onOpenNotes={ () => setStep( notesStepIndex ) }
 				/>
 			) }
 

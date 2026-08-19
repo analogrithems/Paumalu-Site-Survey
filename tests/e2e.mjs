@@ -646,11 +646,30 @@ await customer.waitForSelector( '#pe-pad-wrap:not([hidden])', { timeout: 10000 }
 
 await customer.fill( '.pp-form input[name="pe_name"]', 'Jane Kealoha' );
 
-// Submitting an untouched pad has to be refused on the page rather than round-tripping to find out.
-await customer.click( '.pp-form button[type="submit"]' );
-await customer.waitForSelector( '#pe-pad-wrap.is-missing', { timeout: 5000 } );
+// A typed name is a valid signature on its own — see includes/Proposal/Signature.php — so an
+// untouched pad must not block submission. Checked without actually completing the real sign
+// (the intercepted submit event is prevented after signature.js's own listener has already run),
+// so the drawn-pad happy path below still has an unsigned document to sign.
+const typedOnlyValue = await customer.evaluate( () => new Promise( ( resolve ) => {
+	const form = document.querySelector( 'input[name="pe_action"][value="sign"]' ).closest( 'form' );
 
-check( 'an untouched pad is refused without a round trip', await customer.locator( '.pp-signed' ).count(), 0 );
+	form.addEventListener(
+		'submit',
+		( event ) => {
+			event.preventDefault();
+			resolve( document.getElementById( 'pe-signature-data' ).value );
+		},
+		{ once: true }
+	);
+
+	form.requestSubmit();
+} ) );
+
+check(
+	'an untouched pad leaves the signature field empty rather than blocking the typed name',
+	typedOnlyValue,
+	''
+);
 
 // The pad sits below the fold on a phone, and mouse coordinates are viewport-relative — without
 // this the strokes land on whatever happens to be at those coordinates instead.

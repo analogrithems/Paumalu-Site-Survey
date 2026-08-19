@@ -47,7 +47,7 @@ function ChangeList( { changes } ) {
 	);
 }
 
-export default function ReviewPanel( { survey, changes, onDecided, navigate } ) {
+export default function ReviewPanel( { survey, changes, notes, onDecided, navigate, onOpenNotes } ) {
 	const [ note, setNote ] = useState( '' );
 	const [ busy, setBusy ] = useState( '' );
 	const [ error, setError ] = useState( null );
@@ -87,6 +87,14 @@ export default function ReviewPanel( { survey, changes, onDecided, navigate } ) 
 	// right where the acceptance happened. Left to be found from the surveys list later, it is a step
 	// that quietly does not get taken.
 	const accepted = survey.status === 'pe_accepted';
+
+	// Once changes are requested, the only way forward is the technician resubmitting — there is
+	// nothing for the reviewer to decide until then. Without this, the panel below renders empty
+	// and looks broken rather than "waiting on someone else."
+	const awaitingTechnician = ! accepted && ! canAccept && ! canReturn && survey.status === 'pe_changes_req';
+	const lastRequestNote = awaitingTechnician
+		? [ ...( notes || [] ) ].reverse().find( ( item ) => item.event === 'changes_requested' )
+		: null;
 
 	return (
 		<div className="pe-review">
@@ -129,6 +137,25 @@ export default function ReviewPanel( { survey, changes, onDecided, navigate } ) 
 						</button>
 					</div>
 					{ showChanges && <ChangeList changes={ changes } /> }
+				</div>
+			) }
+
+			{ awaitingTechnician && (
+				<div className="pe-banner pe-banner--info">
+					<p>
+						<strong>{ 'Waiting on the technician.' }</strong>
+						{ ' You requested changes on this survey — it will come back for review once they resubmit it.' }
+					</p>
+					{ lastRequestNote && (
+						<p className="pe-note__body">{ lastRequestNote.content }</p>
+					) }
+					{ onOpenNotes && (
+						<div className="pe-banner__actions">
+							<button type="button" className="pe-btn" onClick={ onOpenNotes }>
+								{ 'Open notes' }
+							</button>
+						</div>
+					) }
 				</div>
 			) }
 

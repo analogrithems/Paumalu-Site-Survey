@@ -9,6 +9,8 @@ src/
 tests/
 CONTEXT.md
 README.md
+DEVELOPER.md
+docs/
 LICENSE
 package.json
 package-lock.json

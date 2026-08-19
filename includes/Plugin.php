@@ -26,6 +26,8 @@ final class Plugin {
 		( new Setup\AdminLockout() )->register();
 		( new Admin\SettingsPage() )->register();
 		( new Admin\ListTable() )->register();
+		( new Admin\DocsMenu() )->register();
+		( new Admin\DashboardWidget() )->register();
 		( new Rest\CatalogController() )->register();
 		( new Rest\SurveyController() )->register();
 		( new Rest\PhotoController() )->register();

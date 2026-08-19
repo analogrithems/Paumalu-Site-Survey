@@ -41,6 +41,15 @@ final class Meta {
 	public const PROPOSAL_EXPIRES = '_pe_proposal_expires';
 	public const PROPOSAL_SENT_TO = '_pe_proposal_sent_to';
 
+	/**
+	 * Set once a signed proposal's work has been put on the calendar.
+	 *
+	 * Lives outside the proposal's own JSON blob because it tracks a step in Josh's workflow, not the
+	 * customer's — a signed proposal never un-signs, but "on the calendar" is a fact the dashboard
+	 * widget needs to clear independently.
+	 */
+	public const SCHEDULED_AT     = '_pe_scheduled_at';
+
 	/** Attachment-side keys, set on photos rather than on the survey. */
 	public const PHOTO_ITEM_KEY   = '_pe_photo_item_key';
 	public const PHOTO_PANEL_ID   = '_pe_photo_panel_id';
