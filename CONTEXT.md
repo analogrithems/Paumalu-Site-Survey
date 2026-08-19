@@ -344,18 +344,19 @@ resolver before concluding anything about deployment state.
 ## 6. SECURITY — read this before doing anything
 
 1. **An application password was disclosed in plaintext chat** (`resi_r3zq7t`) at a time when the
-   site had no HTTPS. It must **never** be written into any file, script, or commit. Aaron has been
-   advised to revoke it in Users → Profile → Application Passwords; **confirm it is revoked** if you
-   pick this up.
+   site had no HTTPS. It must **never** be written into any file, script, or commit — that rule stands
+   regardless of the next point. This is a test site, not production for a live customer base, and
+   Aaron intends to keep using those credentials for live testing rather than rotate them — so do not
+   flag revocation as outstanding work.
 2. **No secrets in files or in chat.** SSH is key-based; do not ask for or accept a password.
 3. Do not run the e2e suite against production. It creates surveys, uploads photos and exercises
-   accept — it would leave junk in Josh's real queue.
+   accept — it would leave junk in the review queue for whoever is covering review that day.
 
 ---
 
 ## 7. Current state
 
-**Phases 1–6 are built.** Version 0.6.3 is what is live in production right now.
+**Phases 1–7 are built.** Version 0.6.3 is what is live in production right now.
 
 | Phase | Status |
 |---|---|
@@ -365,8 +366,17 @@ resolver before concluding anything about deployment state.
 | 4 Photos | done, deployed |
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
-| 7 Email polish | not started |
+| 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
 | 8 Deploy | per-phase; 0.6.3 is what is live right now |
+
+**Correction (2026-08-19):** this file previously listed phase 7 as "not started". It is not — it
+shipped with phase 6. `includes/Review/Notifications.php` covers submitted/changes-requested/accepted/
+notes, `includes/Proposal/Notifications.php` covers signed/declined/viewed, and
+`includes/Proposal/ProposalMailer.php` is the customer-facing HTML send. All three are registered in
+`Plugin.php` and covered by passing assertions in `review-test.php` and `proposal-test.php`
+(re-verified live this session). Recipients are **not** hardcoded to Josh — `reviewer_emails()` in both
+notification classes reads the `notify_emails` setting first, and falls back to every account holding
+`pe_review_site_surveys` (i.e. any `editor` or `administrator`, not one specific person).
 
 Production was verified live at 0.6.0: plugin active at 0.6.0, all **14** `paumalu/v1` routes
 present, all 6 rewrite rules in the `rewrite_rules` option, the landing page served at `/` with
@@ -493,15 +503,20 @@ it). All 5 PHP test suites (253 assertions) still green.
 
 1. Extend `tests/e2e.mjs` through the proposal flow in a **mobile viewport** — local only, never
    against production.
-2. Phase 7 — email polish: the proposal send template and the submit/changes notifications.
+2. Reconcile `assets/signature.js` vs `src/components/SignaturePad.js`: one signing path accepts a
+   typed-name-only signature, the other doesn't. Not yet fixed.
 3. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
    are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
 
 - Hawaii contractor license number, logo, and business mailing address for the proposal footer.
-- Josh Hancock's WordPress account and email, to wire notifications.
 - Whether declined proposals need a follow-up workflow or just a status.
+
+Reviewer notifications are **not** tied to one named person — any account with the `editor` role (or
+above) is a reviewer, and `Notifications::reviewer_emails()` picks up every such account automatically
+unless the `notify_emails` setting is explicitly filled in. No specific person's email is a blocker for
+this to work; just make sure whoever should be reviewing actually has an `editor` account.
 
 ---
 
