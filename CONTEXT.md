@@ -1,7 +1,7 @@
 # Paumalu Site Survey — project context
 
 Handoff notes for anyone (human or agent) picking this up cold. Last updated 2026-08-19, plugin
-version **0.6.0**.
+version **0.6.3**.
 
 ---
 
@@ -355,7 +355,7 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–6 are built.** Version 0.6.0.
+**Phases 1–6 are built.** Version 0.6.3 is what is live in production right now.
 
 | Phase | Status |
 |---|---|
@@ -366,7 +366,7 @@ resolver before concluding anything about deployment state.
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish | not started |
-| 8 Deploy | per-phase; 0.6.0 is what is live right now |
+| 8 Deploy | per-phase; 0.6.3 is what is live right now |
 
 Production was verified live at 0.6.0: plugin active at 0.6.0, all **14** `paumalu/v1` routes
 present, all 6 rewrite rules in the `rewrite_rules` option, the landing page served at `/` with
@@ -375,6 +375,11 @@ also under `no-store`, which matters because WP Super Cache must never write a p
 Earlier at 0.5.0: `/catalog` 401s anonymously, `POST /surveys/1/accept` 404s to a stranger, served
 assets byte-identical to local, no `http://` URLs in served HTML, plugin PHP files return 200 with a
 zero-byte body (the ABSPATH guard executing rather than leaking source).
+
+Deployed 0.6.3 (the wp-admin review-link fix): rsync'd via `.distignore` — which had gone missing
+from the repo in the move to this directory and was recreated — flushed rewrites via the activator,
+and re-verified `/survey/` still returns `no-store, private` and `/` still 200s. `.distignore` is now
+committed so this doesn't happen again.
 
 A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
 over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
