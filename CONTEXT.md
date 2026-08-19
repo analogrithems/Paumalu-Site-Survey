@@ -1,7 +1,7 @@
 # Paumalu Site Survey — project context
 
 Handoff notes for anyone (human or agent) picking this up cold. Last updated 2026-08-19, plugin
-version **0.6.3**.
+version **0.7.0**.
 
 ---
 
@@ -356,7 +356,8 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–7 are built.** Version 0.6.3 is what is live in production right now.
+**Phases 1–7 are built,** plus a docs/dashboard pass beyond the original plan. Version 0.7.0 is what
+is live in production right now.
 
 | Phase | Status |
 |---|---|
@@ -367,7 +368,17 @@ resolver before concluding anything about deployment state.
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
-| 8 Deploy | per-phase; 0.6.3 is what is live right now |
+| 8 Deploy | per-phase; 0.7.0 is what is live right now |
+| 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
+
+**0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
+GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
+Guide/GitHub links in wp-admin under Site Surveys, via a single `includes/Setup/Links.php` registry
+consumed by both PHP and the React boot object. It also adds a wp-admin dashboard widget
+(`includes/Admin/DashboardWidget.php`) showing surveys awaiting review and signed-but-unscheduled
+proposals, with a "Mark scheduled" action that sets a new `_pe_scheduled_at` meta key to drop a
+survey off the second list — that meta key is the only new piece of state this phase introduces;
+nothing else about the survey/proposal lifecycle changed.
 
 **Correction (2026-08-19):** this file previously listed phase 7 as "not started". It is not — it
 shipped with phase 6. `includes/Review/Notifications.php` covers submitted/changes-requested/accepted/
@@ -390,6 +401,13 @@ Deployed 0.6.3 (the wp-admin review-link fix): rsync'd via `.distignore` — whi
 from the repo in the move to this directory and was recreated — flushed rewrites via the activator,
 and re-verified `/survey/` still returns `no-store, private` and `/` still 200s. `.distignore` is now
 committed so this doesn't happen again.
+
+Deployed 0.7.0 (docs + dashboard widget): full local regression first — all 5 PHP suites (253
+assertions) and the Playwright e2e suite (87 assertions) passing — then `rsync -az --delete
+--exclude-from=.distignore` (`docs/` and `DEVELOPER.md` added to `.distignore` alongside the existing
+dev-only exclusions, since the in-app links point at GitHub rather than at anything served locally),
+`wp rewrite flush`, and reverification that `/survey/` still returns `no-store, private` and `/` still
+200s. `wp eval 'echo \Paumalu\SiteSurvey\VERSION;'` confirmed 0.7.0 live.
 
 A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
 over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
