@@ -279,12 +279,21 @@ tests/           repository-test.php rest-test.php photo-test.php review-test.ph
 ### Local
 
 `wp-env` on Docker, pinned to PHP 8.3 (the local CLI is newer — the pin exists so we do not ship
-syntax Dreamhost rejects).
+syntax Dreamhost rejects). The code now lives at
+`/Users/aaroncollins/Development/resi.paumaluelectric.com/Paumalu-Site-Survey` (moved out of the
+`tasks/Fangen` scratch location once the GitHub repo — `analogrithems/Paumalu-Site-Survey` — was
+created).
+
+Node **20+** is required for the build toolchain (pinned in `.nvmrc`) since the `@wordpress/scripts`
+0.6.2 dependency bump pulls in `serialize-javascript@7.x`, which uses the Web Crypto global that
+Node only exposes unflagged from v19 on. Node itself is never part of the deployed plugin — this
+only matters for `npm run build`.
 
 ```bash
-cd /Users/aaroncollins/Development/tasks/Fangen/paumalu-site-survey
+cd /Users/aaroncollins/Development/resi.paumaluelectric.com/Paumalu-Site-Survey
+nvm use                     # picks up .nvmrc (Node 20)
 npx wp-env start            # Docker Desktop must be running
-npm run build               # after any src/ change
+npm run build                # after any src/ change
 npx wp-env run cli wp <...> # wp-cli inside the container
 ```
 
@@ -431,6 +440,31 @@ is a string, not an array.
   ownership, regenerate, send, token, signatures, immutability and on-site signing. This is what
   surfaced the three bugs above.
 - Deployed 0.6.0 to production and re-ran the activator; verified live.
+
+### Dependency hygiene
+
+GitHub Dependabot flagged 39 alerts, all in `package-lock.json`, all `devDependencies` (build
+tooling only — `npm audit --omit=dev` was 0 both before and after, and none of it ships in the
+plugin `.distignore` excludes `node_modules`). Bumped `@wordpress/env` 10→11.13 and
+`@wordpress/scripts` 30→34.1, plus targeted `overrides` for `uuid`, `linkify-it`, `markdown-it`,
+`serialize-javascript`, `adm-zip`, and `minimatch`, which closed 19 of the 39. That upgrade requires
+**Node 20+** (`.nvmrc` added) — `serialize-javascript@7.x` needs the Web Crypto global Node only
+exposes unflagged from v19, and `npm run build` fails with `ReferenceError: crypto is not defined`
+under Node 18. `npm run build` was re-verified working under Node 20; the emitted `build/index.js`
+is byte-identical (webpack's `[compared for emit]`), so this did not touch the shipped bundle.
+
+The remaining ~20 alerts are all nested inside `@wordpress/env`'s own optional tooling (`puppeteer`,
+`lighthouse`, `@sentry/node`, `@opentelemetry/*` — used by `wp-env`'s own test/telemetry
+subcommands, which this project never calls) plus `extract-zip`, which has **no patched version
+published yet** (GHSA-jmr9-qjv8-65gv). None of it is reachable from `npm run build`/`start`/`lint:js`
+or from anything deployed. Not forcing further overrides there — the risk of breaking `wp-env`'s own
+zip-extraction path outweighs closing alerts on code we never execute.
+
+Known side effect: `npm run lint:js` currently crashes on a pre-existing upstream bug in
+`@wordpress/eslint-plugin@25.9.0`'s `no-unknown-ds-tokens` rule (`ERR_REQUIRE_ESM` on its own
+`design-tokens.mjs`) — unrelated to this change, not a security issue, not fixed by pinning to an
+older `@wordpress/eslint-plugin` version since it ships bundled inside `@wordpress/scripts`. Doesn't
+block `build`/`start`, so left as-is; worth a retry once WordPress ships a patch.
 
 ### Immediate next steps
 

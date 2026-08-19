@@ -31,7 +31,7 @@ not dollar amounts.
 
 - WordPress 6.5+
 - PHP 8.3+
-- Node.js (for building the front end) — see `package.json` for the exact toolchain
+- Node.js 20+ (pinned in `.nvmrc`) — the build toolchain only, not needed at runtime
 - [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/)
   and Docker for local development
 
