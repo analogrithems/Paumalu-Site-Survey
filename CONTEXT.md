@@ -387,8 +387,9 @@ resolver before concluding anything about deployment state.
 ## 7. Current state
 
 **Phases 1–10 are built and deployed,** plus a decline/close split beyond the original plan. Version
-**0.9.0** is code-complete and tested locally; 0.8.0 is what is live in production as of this
-session's deploy, and 0.9.0 is queued to ship the same way.
+**0.9.0 is live in production**, self-updated via the GitHub Releases pipeline — no manual deploy
+step was needed this time, confirmed via `wp eval` over SSH and the usual `no-store, private` /
+routing checks.
 
 | Phase | Status |
 |---|---|
@@ -399,10 +400,10 @@ session's deploy, and 0.9.0 is queued to ship the same way.
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
-| 8 Deploy | per-phase; 0.8.0 is what is live right now |
+| 8 Deploy | per-phase; 0.9.0 is what is live right now |
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
 | 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done, deployed as 0.8.0 |
-| 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done locally, queued to deploy as 0.9.0 |
+| 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done, deployed as 0.9.0 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
@@ -454,6 +455,21 @@ to go out through the GitHub Releases pipeline documented in [DEVELOPER.md](DEVE
 than rsync — every site running the plugin (this one included) now checks that release feed for
 updates instead of needing a manual SFTP/SSH step.
 
+Deployed 0.9.0 (decline/close split): the release itself took four attempts, worth recording because
+it will recur. `npm ci` in CI kept rejecting `package-lock.json` with a *different* missing/mismatched
+nested-dependency error each retry (`@emnapi/*`, then `minimatch`/`brace-expansion`/`balanced-match`)
+even after a plain `npm install` and then a full `rm -rf node_modules package-lock.json && npm install`
+both checked out fine locally. Root cause: the lockfile was being regenerated on macOS/arm64, and this
+graph's optional/nested dependency resolution is not fully platform-portable — a lockfile that
+satisfies `npm ci` locally does not necessarily satisfy it on `ubuntu-latest`. **Fixed by regenerating
+`package-lock.json` inside a `node:20` Docker container** (matching CI's OS family and Node major) and
+verifying `npm ci` and `npm run build` both succeed *inside that container* before committing — not
+just locally. **If a release's `npm ci` step fails on a lockfile that looked fine locally, regenerate
+it in a Linux container rather than retrying on macOS.** Once that lockfile landed, the release
+published clean, and **production self-updated with no manual deploy step** — confirmed live via
+`wp eval 'echo \Paumalu\SiteSurvey\VERSION;'` over SSH (`0.9.0`), and the routing/`no-store, private`
+checks still pass.
+
 A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
 over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
 form present, `no-store` header, zero rows left behind. That is the whole customer path proven in the
@@ -504,7 +520,7 @@ is a string, not an array.
 
 ### Just completed in the current session
 
-- **Decline/close split** (0.9.0, not yet deployed — see phase 11 above). `Proposal::CLOSED` added
+- **Decline/close split** (0.9.0, deployed and live — see phase 11 above). `Proposal::CLOSED` added
   alongside `DECLINED`; `Proposal::close()` transitions declined → closed and is only reachable that
   way; `Proposal::save()` and `Signature::decline()` both now also refuse once closed, the same way
   they already refused once signed. New route `POST /surveys/{id}/proposal/close`
@@ -522,10 +538,13 @@ is a string, not an array.
 - `tests/proposal-test.php` grew from 80 to 119 assertions covering all of the above, including that
   closing refuses from every state except declined, and that a technician/reviewer permission split
   is enforced on the close route.
-- Version bumped to 0.9.0. Not yet deployed — queued for the next release alongside this doc update.
 - **0.8.0 deployed**: Aaron pushed to `main`, tagged `v0.8.0`, and it went out through the GitHub
   Releases pipeline for the first time, then was deployed to production manually the same session
   (see the 0.8.0 deploy note above).
+- **0.9.0 released and self-updated to production** — no manual deploy step needed this time. Took
+  three failed release attempts and a fourth that worked, all due to a `package-lock.json` that
+  passed locally but not in CI; see the 0.9.0 deploy note above for the fix and the lesson for next
+  time.
 
 ### Dependency hygiene
 
@@ -599,11 +618,13 @@ paths in a mobile viewport (87 assertions, local only). `assets/signature.js` an
 `src/components/SignaturePad.js` are reconciled — both now accept a typed-name-only signature,
 matching the server-side rule. See `DEVELOPER.md` for how to run the suite.
 
+**Done, this session:** 0.9.0 (decline/close split) shipped through the GitHub Releases pipeline and
+production self-updated to it with no manual deploy step — see the 0.9.0 deploy note above, including
+the lockfile gotcha worth knowing about before the next release.
+
 Still open:
 
-1. Deploy 0.9.0 (decline/close split) the same way 0.8.0 went out: bump already done, needs commit,
-   push, tag `v0.9.0`, and — once the GitHub Release publishes — the manual production deploy.
-2. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
+1. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
    are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
