@@ -1,7 +1,7 @@
 # Paumalu Site Survey — project context
 
 Handoff notes for anyone (human or agent) picking this up cold. Last updated 2026-08-19, plugin
-version **0.7.0**.
+version **0.7.1**.
 
 ---
 
@@ -356,7 +356,7 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–7 are built,** plus a docs/dashboard pass beyond the original plan. Version 0.7.0 is what
+**Phases 1–7 are built,** plus a docs/dashboard pass beyond the original plan. Version 0.7.1 is what
 is live in production right now.
 
 | Phase | Status |
@@ -368,7 +368,7 @@ is live in production right now.
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
-| 8 Deploy | per-phase; 0.7.0 is what is live right now |
+| 8 Deploy | per-phase; 0.7.1 is what is live right now |
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
@@ -408,6 +408,11 @@ assertions) and the Playwright e2e suite (87 assertions) passing — then `rsync
 dev-only exclusions, since the in-app links point at GitHub rather than at anything served locally),
 `wp rewrite flush`, and reverification that `/survey/` still returns `no-store, private` and `/` still
 200s. `wp eval 'echo \Paumalu\SiteSurvey\VERSION;'` confirmed 0.7.0 live.
+
+Deployed 0.7.1 (plugin metadata only): added `Plugin URI` (the GitHub repo) and `Author URI`
+(`https://github.com/analogrithems`) to the plugin header so the wp-admin plugins list links out
+correctly — verified via `get_plugin_data()` locally before deploying. No code paths changed; same
+rsync + verify pattern as above.
 
 A throwaway probe on production created an accepted survey, minted a token, fetched the resulting URL
 over HTTP and force-deleted itself: 200, intro and line text present, `noindex` present, signature
@@ -519,11 +524,14 @@ it). All 5 PHP test suites (253 assertions) still green.
 
 ### Immediate next steps
 
-1. Extend `tests/e2e.mjs` through the proposal flow in a **mobile viewport** — local only, never
-   against production.
-2. Reconcile `assets/signature.js` vs `src/components/SignaturePad.js`: one signing path accepts a
-   typed-name-only signature, the other doesn't. Not yet fixed.
-3. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
+**Done, later session:** `tests/e2e.mjs` now runs the full flow through the proposal and both signing
+paths in a mobile viewport (87 assertions, local only). `assets/signature.js` and
+`src/components/SignaturePad.js` are reconciled — both now accept a typed-name-only signature,
+matching the server-side rule. See `DEVELOPER.md` for how to run the suite.
+
+Still open:
+
+1. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
    are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
