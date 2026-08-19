@@ -466,6 +466,24 @@ Known side effect: `npm run lint:js` currently crashes on a pre-existing upstrea
 older `@wordpress/eslint-plugin` version since it ships bundled inside `@wordpress/scripts`. Doesn't
 block `build`/`start`, so left as-is; worth a retry once WordPress ships a patch.
 
+### wp-admin review link went to a blank screen
+
+The CPT has `supports => [ 'title', 'author' ]` and no `add_meta_box()` calls anywhere — clicking a
+survey's title in wp-admin (or "Edit" in row actions) landed a reviewer on the default post-edit
+screen with nothing on it: no questions, no answers, no way to accept or request changes. That screen
+was never meant to be used; the review UI is the front-end app at `/survey/{id}/review/`, but nothing
+pointed there from wp-admin.
+
+Fixed in `includes/Admin/ListTable.php`: a `get_edit_post_link` filter redirects a survey's edit link
+to `Router::url( $id . '/review/' )`, and a `post_row_actions` filter relabels "Edit" to "Review" and
+removes "Quick Edit" (its status dropdown doesn't know this plugin's custom statuses, and the review
+screen is the only place a status should change). Verified locally end-to-end: clicking the title
+lands on the front-end review app with full Q&A and Accept/Request-changes controls; row actions read
+"Review | Trash"; submitting a request-changes note flips the list table's status filter to
+"Changes Requested (1)"; the technician's own `/survey/` list already showed a "Changes Requested"
+pill for the same survey with no code change needed (`src/components/SurveyList.js` already handled
+it). All 5 PHP test suites (253 assertions) still green.
+
 ### Immediate next steps
 
 1. Extend `tests/e2e.mjs` through the proposal flow in a **mobile viewport** — local only, never

@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace Paumalu\SiteSurvey\Admin;
 
 use Paumalu\SiteSurvey\Data\Meta;
+use Paumalu\SiteSurvey\Frontend\Router;
 use Paumalu\SiteSurvey\PostType\Statuses;
 use Paumalu\SiteSurvey\PostType\SurveyPostType;
 
@@ -24,6 +25,48 @@ final class ListTable {
 		add_filter( 'manage_edit-' . SurveyPostType::POST_TYPE . '_sortable_columns', [ $this, 'sortable' ] );
 		add_action( 'pre_get_posts', [ $this, 'apply_sorting' ] );
 		add_action( 'admin_head', [ $this, 'styles' ] );
+		add_filter( 'get_edit_post_link', [ $this, 'edit_link' ], 10, 2 );
+		add_filter( 'post_row_actions', [ $this, 'row_actions' ], 10, 2 );
+	}
+
+	/**
+	 * There is nothing to edit on the core post-edit screen — no meta boxes are registered, because
+	 * the questions and answers live in the survey app, not in wp-admin. Without this, clicking a
+	 * survey's title lands a reviewer on a blank title-only screen with no way to see what the
+	 * technician found or to approve it, which is exactly the trap that prompted this fix.
+	 */
+	public function edit_link( string $link, int $post_id ): string {
+		if ( SurveyPostType::POST_TYPE !== get_post_type( $post_id ) ) {
+			return $link;
+		}
+
+		return Router::url( $post_id . '/review/' );
+	}
+
+	/**
+	 * @param array<string, string> $actions
+	 * @return array<string, string>
+	 */
+	public function row_actions( array $actions, \WP_Post $post ): array {
+		if ( SurveyPostType::POST_TYPE !== $post->post_type ) {
+			return $actions;
+		}
+
+		// Quick Edit only offers title/author/status controls, and the status dropdown does not
+		// know about this plugin's custom statuses — using it risks leaving a survey in a status
+		// the workflow never produces on its own. The review screen is the only place a status
+		// should change.
+		unset( $actions['inline hide-if-no-js'] );
+
+		if ( isset( $actions['edit'] ) ) {
+			$actions['edit'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( $this->edit_link( '', $post->ID ) ),
+				esc_html__( 'Review', 'paumalu-site-survey' )
+			);
+		}
+
+		return $actions;
 	}
 
 	/**

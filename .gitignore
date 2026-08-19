@@ -20,3 +20,6 @@ composer.phar
 Thumbs.db
 .vscode/
 .idea/
+
+# Local wp-env config (machine-specific paths/ports)
+.wp-env.json
