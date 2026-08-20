@@ -373,11 +373,12 @@ resolver before concluding anything about deployment state.
 
 ## 6. SECURITY — read this before doing anything
 
-1. **An application password was disclosed in plaintext chat** (`resi_r3zq7t`) at a time when the
-   site had no HTTPS. It must **never** be written into any file, script, or commit — that rule stands
-   regardless of the next point. This is a test site, not production for a live customer base, and
-   Aaron intends to keep using those credentials for live testing rather than rotate them — so do not
-   flag revocation as outstanding work.
+1. **An application password was disclosed in plaintext chat** at a time when the site had no HTTPS.
+   It must **never** be written into any file, script, or commit — that rule stood the whole time it
+   was live, and applies to any future credential shared the same way regardless of whether it's
+   still active. **Aaron revoked it on 2026-08-19** — it is no longer valid. If something in the app
+   needs authenticated API access again, ask Aaron to generate a fresh application password rather
+   than assuming the old one still works or trying to recover it from history.
 2. **No secrets in files or in chat.** SSH is key-based; do not ask for or accept a password.
 3. Do not run the e2e suite against production. It creates surveys, uploads photos and exercises
    accept — it would leave junk in the review queue for whoever is covering review that day.
