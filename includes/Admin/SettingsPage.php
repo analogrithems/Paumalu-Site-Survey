@@ -14,11 +14,41 @@ final class SettingsPage {
 
 	public const OPTION = 'pe_site_survey_settings';
 
+	public const SLUG = 'pe-site-survey-settings';
+
 	private const GROUP = 'pe_site_survey_settings_group';
 
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'add_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+
+		// The standard "Settings" row action on the Plugins list page. Company name, phone, license
+		// number and the rest live under Site Surveys → Settings, which nothing on the Plugins page
+		// points at otherwise — this is the shortcut every other well-behaved plugin offers.
+		add_filter(
+			'plugin_action_links_' . plugin_basename( \Paumalu\SiteSurvey\PLUGIN_FILE ),
+			[ $this, 'add_action_link' ]
+		);
+	}
+
+	/**
+	 * @return array<string, string>
+	 */
+	public function add_action_link( array $links ): array {
+		$settings = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( self::url() ),
+			esc_html__( 'Settings', 'paumalu-site-survey' )
+		);
+
+		// Convention is Settings first, ahead of Deactivate/Edit — it's the link people reach for most.
+		array_unshift( $links, $settings );
+
+		return $links;
+	}
+
+	public static function url(): string {
+		return admin_url( 'edit.php?post_type=' . SurveyPostType::POST_TYPE . '&page=' . self::SLUG );
 	}
 
 	/**
@@ -64,7 +94,7 @@ final class SettingsPage {
 			__( 'Site Survey Settings', 'paumalu-site-survey' ),
 			__( 'Settings', 'paumalu-site-survey' ),
 			'manage_options',
-			'pe-site-survey-settings',
+			self::SLUG,
 			[ $this, 'render' ]
 		);
 	}
