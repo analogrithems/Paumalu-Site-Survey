@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Landing {
 
 	/** Paumalu Electric's actual public website. */
-	public const PUBLIC_SITE = 'https://paumaluelectric.wordpress.com/';
+	public const PUBLIC_SITE = 'https://www.paumaluelectric.com/';
 
 	public function register(): void {
 		add_filter( 'template_include', [ $this, 'load_template' ], 20 );
