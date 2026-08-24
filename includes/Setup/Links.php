@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * One place for the GitHub project URL and its docs, so the front-end app and the wp-admin menu
- * (see Admin\DocsMenu) never drift apart on where they send people.
+ * (see Admin\HelpTab) never drift apart on where they send people.
  */
 final class Links {
 

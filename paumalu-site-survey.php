@@ -3,7 +3,7 @@
  * Plugin Name:       Paumalu Site Survey
  * Plugin URI:        https://github.com/analogrithems/Paumalu-Site-Survey
  * Description:       Mobile-first residential electrical service inspections for field technicians, with editor review and a customer-facing action plan.
- * Version:           0.9.0
+ * Version:           0.9.1
  * Requires at least: 6.5
  * Requires PHP:      8.3
  * Author:            Analogrithems
@@ -26,8 +26,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // the app itself, and the reviewer dashboard queue. 0.8.0 adds GitHub-Release self-updates, a
 // configurable proposal from-address, and the proposal send log with resend. 0.9.0 splits a
 // customer decline into DECLINED (needs a look) and CLOSED (read, nothing more to do) so "maybe
-// resubmit later" and "not interested" stop looking identical in the queue.
-const VERSION     = '0.9.0';
+// resubmit later" and "not interested" stop looking identical in the queue. 0.9.1 is admin polish:
+// a Settings link on the Plugins page, the landing page's company-site URL corrected, and the
+// Editor/Administrator Guide moved off the left nav into a Help tab.
+const VERSION     = '0.9.1';
 const PLUGIN_FILE = __FILE__;
 
 define( 'Paumalu\SiteSurvey\PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

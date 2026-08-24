@@ -27,7 +27,7 @@ final class Plugin {
 		( new Setup\Updates() )->register();
 		( new Admin\SettingsPage() )->register();
 		( new Admin\ListTable() )->register();
-		( new Admin\DocsMenu() )->register();
+		( new Admin\HelpTab() )->register();
 		( new Admin\DashboardWidget() )->register();
 		( new Rest\CatalogController() )->register();
 		( new Rest\SurveyController() )->register();

@@ -387,10 +387,10 @@ resolver before concluding anything about deployment state.
 
 ## 7. Current state
 
-**Phases 1–10 are built and deployed,** plus a decline/close split beyond the original plan. Version
-**0.9.0 is live in production**, self-updated via the GitHub Releases pipeline — no manual deploy
-step was needed this time, confirmed via `wp eval` over SSH and the usual `no-store, private` /
-routing checks.
+**Phases 1–11 are built and deployed,** plus a small admin-polish pass beyond the original plan.
+Version **0.9.0 is live in production**, self-updated via the GitHub Releases pipeline — no manual
+deploy step was needed for that one, confirmed via `wp eval` over SSH and the usual `no-store,
+private` / routing checks. **0.9.1 is code-complete locally and queued to ship the same way.**
 
 | Phase | Status |
 |---|---|
@@ -405,11 +405,19 @@ routing checks.
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
 | 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done, deployed as 0.8.0 |
 | 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done, deployed as 0.9.0 |
+| 12 Admin polish (Plugins-page Settings link, landing page's company-site URL fixed, Editor/Administrator Guide moved from left-nav to a Help tab) | done locally, queued to deploy as 0.9.1 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
-Guide/GitHub links in wp-admin under Site Surveys, via a single `includes/Setup/Links.php` registry
-consumed by both PHP and the React boot object. It also adds a wp-admin dashboard widget
+Guide/GitHub links in wp-admin, via a single `includes/Setup/Links.php` registry consumed by both
+PHP and the React boot object. Those wp-admin links originally lived as extra rows in the Site
+Surveys left-nav submenu (`Admin\DocsMenu`); a later session moved them into the standard "Help"
+dropdown at the top right of the Site Surveys and Settings screens instead (`Admin\HelpTab`,
+hooked on `current_screen`, applies to any screen whose post type is this plugin's) — a left-nav
+row for "Editor Guide" read as a page of its own and outranked the actual admin screens, and the
+Help tab is where other well-behaved plugins put reference links. Same role split as before: every
+reviewer gets the editor guide and the GitHub link, only administrators also get the administrator
+guide. It also adds a wp-admin dashboard widget
 (`includes/Admin/DashboardWidget.php`) showing surveys awaiting review and signed-but-unscheduled
 proposals, with a "Mark scheduled" action that sets a new `_pe_scheduled_at` meta key to drop a
 survey off the second list — that meta key is the only new piece of state this phase introduces;
@@ -625,7 +633,9 @@ the lockfile gotcha worth knowing about before the next release.
 
 Still open:
 
-1. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
+1. Deploy 0.9.1 (admin polish — see phase 12 above): version already bumped, needs commit, push, tag
+   `v0.9.1`, and the GitHub Release pipeline should handle the rest via self-update.
+2. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
    are Settings fields already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
