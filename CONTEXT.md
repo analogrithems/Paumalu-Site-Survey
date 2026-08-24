@@ -392,7 +392,8 @@ resolver before concluding anything about deployment state.
 **Phases 1–11 are built and deployed,** plus a small admin-polish pass beyond the original plan.
 Version **0.9.0 is live in production**, self-updated via the GitHub Releases pipeline — no manual
 deploy step was needed for that one, confirmed via `wp eval` over SSH and the usual `no-store,
-private` / routing checks. **0.9.1 is code-complete locally and queued to ship the same way.**
+private` / routing checks. **0.9.1 is also live in production**, same pipeline, deployed clean on
+the first release attempt this time — the `package-lock.json` fix from the 0.9.0 deploy held.
 
 | Phase | Status |
 |---|---|
@@ -403,11 +404,11 @@ private` / routing checks. **0.9.1 is code-complete locally and queued to ship t
 | 5 Review (submit, snapshot + diff banner, notes, request changes, accept, notifications) | done, deployed as 0.5.0 |
 | 6 Proposal (builder, editor UI, public token page, both signing paths, print stylesheet) | done, deployed as 0.6.0 |
 | 7 Email polish (proposal-send HTML template, submit/changes/accept + signed/declined/viewed notifications) | done, deployed as 0.6.0 |
-| 8 Deploy | per-phase; 0.9.0 is what is live right now |
+| 8 Deploy | per-phase; 0.9.1 is what is live right now |
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
 | 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done, deployed as 0.8.0 |
 | 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done, deployed as 0.9.0 |
-| 12 Admin polish (Plugins-page Settings link, landing page's company-site URL fixed, Editor/Administrator Guide moved from left-nav to a Help tab, real company logo + favicon wired through Settings) | done locally, queued to deploy as 0.9.1 |
+| 12 Admin polish (Plugins-page Settings link, landing page's company-site URL fixed, Editor/Administrator Guide moved from left-nav to a Help tab, real company logo + favicon wired through Settings) | done, deployed as 0.9.1 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
@@ -584,11 +585,14 @@ is a string, not an array.
     topbar, the Settings page picker, and a real customer proposal page; favicon link tags present
     on all three custom templates; media frame opens and reflects the custom "Choose a logo"/"Use
     this image" labels. All 285 PHP assertions still green.
-  - **Still needed:** the same media import + `logo_id`/`site_icon` option-setting step against
-    *production* — this session only populated the local wp-env database. The code ships the
-    capability; someone still has to upload the two images there once 0.9.1 is deployed (or Aaron
-    can do it himself from Settings → Logo and Settings → General → Site Icon — no code access
-    needed either way).
+  - **Done, same session:** 0.9.1 deployed to production (clean release, first attempt — see the
+    version-header note above) and the same media-import + option-setting step run there too:
+    attachment ids 25 (logo) and 26 (site icon), same source files downloaded directly on the
+    production host so nothing traveled through this machine. Verified live — landing page, a real
+    accepted-survey-and-token proposal page (created and force-deleted the same way the 0.5.0-era
+    probe did, per §7), and `SettingsPage::value('logo_id')` resolving to the right attachment URL
+    (the same value the survey app's topbar reads) all confirmed against the real site over curl and
+    SSH, not just the local test harness.
 
 ### Dependency hygiene
 
@@ -666,16 +670,20 @@ matching the server-side rule. See `DEVELOPER.md` for how to run the suite.
 production self-updated to it with no manual deploy step — see the 0.9.0 deploy note above, including
 the lockfile gotcha worth knowing about before the next release.
 
+**Done, this session:** 0.9.1 (admin polish, phase 12) shipped through the same GitHub Releases
+pipeline — clean on the first attempt this time — and the real logo/favicon were uploaded to
+production's media library and wired into Settings, not just local wp-env. See the "Just completed"
+entry above for the verification detail.
+
 Still open:
 
-1. Deploy 0.9.1 (admin polish — see phase 12 above): version already bumped, needs commit, push, tag
-   `v0.9.1`, and the GitHub Release pipeline should handle the rest via self-update.
-2. Fill in the proposal footer once Aaron supplies licence number, logo and mailing address; those
-   are Settings fields already, so it is data entry rather than code.
+1. Fill in the proposal footer once Aaron supplies licence number and mailing address (logo is now
+   done); that's a Settings field already, so it is data entry rather than code.
 
 ### Open questions for Aaron (asked, still unanswered)
 
-- Hawaii contractor license number, logo, and business mailing address for the proposal footer.
+- Hawaii contractor license number and business mailing address for the proposal footer (the logo
+  itself is done — see phase 12).
 
 **Answered (2026-08-19):** declined proposals do need a resubmission path, not just a status — see
 the `declined`/`closed` split described in §3 above. A customer's decline note is now surfaced to
