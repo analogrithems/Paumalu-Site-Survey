@@ -54,7 +54,17 @@ export default function App() {
 					className="pe-topbar__brand"
 					onClick={ () => navigate( { name: 'list', id: 0 } ) }
 				>
-					{ 'Site Surveys' }
+					{ /* Falls back to the text wordmark when nobody has set a logo on the Settings
+					     page yet — same rule the home page and the customer proposal already use. */ }
+					{ boot.logoUrl ? (
+						<img
+							className="pe-topbar__logo"
+							src={ boot.logoUrl }
+							alt={ boot.companyName || 'Site Surveys' }
+						/>
+					) : (
+						'Site Surveys'
+					) }
 				</button>
 				<span className="pe-topbar__user">{ boot.user?.name }</span>
 			</header>

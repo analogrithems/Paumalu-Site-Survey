@@ -47,6 +47,9 @@ $staff_text = $staff_can
 		echo esc_html( sprintf( __( '%s — Internal Tools', 'paumalu-site-survey' ), $company ) );
 	?></title>
 	<?php wp_robots(); ?>
+	<?php // Reuses core's own tag output rather than hand-rolling sizes — this page skips wp_head()
+	// entirely (see the file docblock), so nothing else would print a favicon here. ?>
+	<?php wp_site_icon(); ?>
 	<style>
 		:root { --ink: #12455f; --muted: #5b6b74; --line: #dfe5e8; }
 

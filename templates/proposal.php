@@ -47,6 +47,9 @@ $logo_url = $logo_id > 0 ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '
 	<meta name="theme-color" content="#12455f">
 	<meta name="robots" content="noindex, nofollow, noarchive">
 	<title><?php echo esc_html__( 'Your Electrical Action Plan', 'paumalu-site-survey' ); ?></title>
+	<?php // This page is server-rendered outside wp_head() too — see the file docblock — so the
+	// favicon needs the same explicit call as the landing page. ?>
+	<?php wp_site_icon(); ?>
 	<link rel="stylesheet" href="<?php echo esc_url( \Paumalu\SiteSurvey\PLUGIN_URL . 'assets/proposal.css?v=' . \Paumalu\SiteSurvey\VERSION ); ?>">
 </head>
 <body class="pp">

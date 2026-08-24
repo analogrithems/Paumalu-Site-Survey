@@ -18,9 +18,13 @@ final class SettingsPage {
 
 	private const GROUP = 'pe_site_survey_settings_group';
 
+	/** Set by add_page() so enqueue_assets() can target this screen only, not every wp-admin page. */
+	private string $hook_suffix = '';
+
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'add_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
 		// The standard "Settings" row action on the Plugins list page. Company name, phone, license
 		// number and the rest live under Site Surveys → Settings, which nothing on the Plugins page
@@ -89,13 +93,34 @@ final class SettingsPage {
 	}
 
 	public function add_page(): void {
-		add_submenu_page(
+		$hook_suffix = add_submenu_page(
 			'edit.php?post_type=' . SurveyPostType::POST_TYPE,
 			__( 'Site Survey Settings', 'paumalu-site-survey' ),
 			__( 'Settings', 'paumalu-site-survey' ),
 			'manage_options',
 			self::SLUG,
 			[ $this, 'render' ]
+		);
+
+		$this->hook_suffix = false !== $hook_suffix ? $hook_suffix : '';
+	}
+
+	/**
+	 * The media library picker for the logo field. wp_enqueue_media() is what makes wp.media
+	 * available at all — it isn't loaded by default outside the post editor and Customizer.
+	 */
+	public function enqueue_assets( string $hook ): void {
+		if ( '' === $this->hook_suffix || $hook !== $this->hook_suffix ) {
+			return;
+		}
+
+		wp_enqueue_media();
+		wp_enqueue_script(
+			'pe-settings-logo',
+			\Paumalu\SiteSurvey\PLUGIN_URL . 'assets/settings-logo.js',
+			[],
+			\Paumalu\SiteSurvey\VERSION,
+			true
 		);
 	}
 
@@ -164,12 +189,44 @@ final class SettingsPage {
 			'disclaimer'        => [ __( 'Inspection disclaimer', 'paumalu-site-survey' ), 'textarea', '' ],
 			'proposal_terms'    => [ __( 'Sign-off terms', 'paumalu-site-survey' ), 'textarea', '' ],
 		];
+
+		$logo_id  = (int) $settings['logo_id'];
+		$logo_url = $logo_id > 0 ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Site Survey Settings', 'paumalu-site-survey' ); ?></h1>
 			<form method="post" action="options.php">
 				<?php settings_fields( self::GROUP ); ?>
 				<table class="form-table" role="presentation">
+					<?php // Its own row, not part of the generic loop below — an image picker needs a
+					// hidden id field, a preview and two buttons, not one text input. ?>
+					<tr>
+						<th scope="row">
+							<label for="pe-logo-pick"><?php esc_html_e( 'Logo', 'paumalu-site-survey' ); ?></label>
+						</th>
+						<td>
+							<input type="hidden" id="pe-logo-id"
+								name="<?php echo esc_attr( self::OPTION . '[logo_id]' ); ?>"
+								value="<?php echo esc_attr( (string) $logo_id ); ?>">
+							<p>
+								<img id="pe-logo-preview" src="<?php echo esc_url( $logo_url ); ?>" alt=""
+									style="max-width:220px;height:auto;display:block;margin:0 0 8px;"
+									<?php echo '' === $logo_url ? 'hidden' : ''; ?>>
+							</p>
+							<button type="button" class="button" id="pe-logo-pick"
+								data-title="<?php esc_attr_e( 'Choose a logo', 'paumalu-site-survey' ); ?>"
+								data-button="<?php esc_attr_e( 'Use this image', 'paumalu-site-survey' ); ?>">
+								<?php esc_html_e( 'Choose image', 'paumalu-site-survey' ); ?>
+							</button>
+							<button type="button" class="button" id="pe-logo-remove"
+								<?php echo '' === $logo_url ? 'hidden' : ''; ?>>
+								<?php esc_html_e( 'Remove', 'paumalu-site-survey' ); ?>
+							</button>
+							<p class="description">
+								<?php esc_html_e( 'Shown on the home page, the survey app, and the customer proposal page.', 'paumalu-site-survey' ); ?>
+							</p>
+						</td>
+					</tr>
 					<?php foreach ( $fields as $key => [$label, $type, $help] ) : ?>
 						<tr>
 							<th scope="row">

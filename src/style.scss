@@ -73,6 +73,18 @@ body.pe-survey-body {
 		font-weight: 600;
 		padding: 6px 0;
 		cursor: pointer;
+		line-height: 0;
+	}
+
+	// A white chip behind the mark rather than the bare PNG: the logo's outline text is black,
+	// which disappears against the dark brand bar without it.
+	&__logo {
+		display: block;
+		height: 32px;
+		width: auto;
+		padding: 4px 10px;
+		background: #fff;
+		border-radius: 6px;
 	}
 
 	&__user {

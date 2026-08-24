@@ -49,7 +49,16 @@ body.pp {
 	gap: 12px;
 }
 
-.pp-logo { max-height: 40px; width: auto; display: block; }
+/* A white chip behind the mark, not the bare image: the logo's outline text is black, which
+   disappears against the dark header background without it. */
+.pp-logo {
+	max-height: 40px;
+	width: auto;
+	display: block;
+	padding: 4px 10px;
+	background: #fff;
+	border-radius: 6px;
+}
 
 .pp-wordmark { font-weight: 700; font-size: 18px; letter-spacing: 0.01em; }
 

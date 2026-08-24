@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 namespace Paumalu\SiteSurvey\Frontend;
 
+use Paumalu\SiteSurvey\Admin\SettingsPage;
 use Paumalu\SiteSurvey\Catalog\Catalog;
 use Paumalu\SiteSurvey\PostType\Statuses;
 use Paumalu\SiteSurvey\Rest\Controller;
@@ -292,7 +293,8 @@ final class Router {
 	 * @return array<string, mixed>
 	 */
 	private function bootstrap_data(): array {
-		$user = wp_get_current_user();
+		$user    = wp_get_current_user();
+		$logo_id = (int) SettingsPage::value( 'logo_id' );
 
 		return [
 			'route'      => self::current_route(),
@@ -304,6 +306,10 @@ final class Router {
 			'adminUrl'   => current_user_can( Capabilities::REVIEW ) ? admin_url( 'edit.php?post_type=pe_site_survey' ) : '',
 			'githubUrl'  => Links::GITHUB,
 			'docsUrl'    => Links::TECHNICIAN_GUIDE,
+			// Company branding, set on the Settings page — empty when nobody has uploaded one yet,
+			// which the app reads as "show the text brand instead" rather than a broken image.
+			'logoUrl'    => $logo_id > 0 ? (string) wp_get_attachment_image_url( $logo_id, 'medium' ) : '',
+			'companyName' => SettingsPage::value( 'company_name' ),
 			'catalogVersion' => Catalog::CURRENT_VERSION,
 			'statusLabels'   => Statuses::labels(),
 			'user'       => [

@@ -27,8 +27,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // configurable proposal from-address, and the proposal send log with resend. 0.9.0 splits a
 // customer decline into DECLINED (needs a look) and CLOSED (read, nothing more to do) so "maybe
 // resubmit later" and "not interested" stop looking identical in the queue. 0.9.1 is admin polish:
-// a Settings link on the Plugins page, the landing page's company-site URL corrected, and the
-// Editor/Administrator Guide moved off the left nav into a Help tab.
+// a Settings link on the Plugins page, the landing page's company-site URL corrected, the
+// Editor/Administrator Guide moved off the left nav into a Help tab, and a real media-library
+// picker for the logo (shown on the home page, the survey app, and the customer proposal) plus the
+// favicon, sourced from paumaluelectric.com.
 const VERSION     = '0.9.1';
 const PLUGIN_FILE = __FILE__;
 

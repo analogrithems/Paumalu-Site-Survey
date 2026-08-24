@@ -276,9 +276,11 @@ templates/
   proposal.php   The customer's page — server-rendered, works with no JavaScript
   landing.php    The public signpost, styles inline (dead-end page, not worth a second request)
 assets/
-  proposal.css   Standalone CSS for the customer page, with a @media print block
-  signature.js   Vanilla pad for the customer page (sibling of SignaturePad.js, not shared —
-                 one runs unbuilt on a plain page, the other lives in the bundle)
+  proposal.css     Standalone CSS for the customer page, with a @media print block
+  signature.js     Vanilla pad for the customer page (sibling of SignaturePad.js, not shared —
+                   one runs unbuilt on a plain page, the other lives in the bundle)
+  settings-logo.js Vanilla wp.media() picker for the Settings page's Logo field — same reasoning
+                   as signature.js, a wp-admin screen doesn't need the React bundle for one field
 build/           Committed. Rebuild with `npm run build` after ANY change under src/
 tests/           repository-test.php rest-test.php photo-test.php review-test.php e2e.mjs
 ```
@@ -405,7 +407,7 @@ private` / routing checks. **0.9.1 is code-complete locally and queued to ship t
 | 9 Docs + dashboard queue (role-based guides, in-app links, reviewer dashboard widget) | done, deployed as 0.7.0 |
 | 10 Self-update (vendored Plugin Update Checker, GitHub Actions release build, proposal from-address, proposal send log + resend) | done, deployed as 0.8.0 |
 | 11 Decline/close split (decline note surfaced to the technician, reviewer-only "close — no follow-up" action) | done, deployed as 0.9.0 |
-| 12 Admin polish (Plugins-page Settings link, landing page's company-site URL fixed, Editor/Administrator Guide moved from left-nav to a Help tab) | done locally, queued to deploy as 0.9.1 |
+| 12 Admin polish (Plugins-page Settings link, landing page's company-site URL fixed, Editor/Administrator Guide moved from left-nav to a Help tab, real company logo + favicon wired through Settings) | done locally, queued to deploy as 0.9.1 |
 
 **0.7.0** adds `docs/` (technician, editor, administrator guides), linked from the app itself —
 GitHub/docs links in the technician surveys page footer, and role-gated Editor Guide/Administrator
@@ -554,6 +556,39 @@ is a string, not an array.
   three failed release attempts and a fourth that worked, all due to a `package-lock.json` that
   passed locally but not in CI; see the 0.9.0 deploy note above for the fix and the lesson for next
   time.
+- **0.9.1, admin polish (code-complete, not yet deployed — phase 12):** a Plugins-page Settings row
+  action; the landing page's "Go to the company website" link corrected from a stale wordpress.com
+  URL to `https://www.paumaluelectric.com`; the Editor/Administrator Guide left-nav items replaced
+  by a proper Help tab; and — this session — the real company logo and favicon, sourced from the
+  live paumaluelectric.com site and wired through end to end:
+  - `SettingsPage::render()` gained an actual media-library picker for `logo_id` (it existed as a
+    data field and was already consumed by the landing page and the proposal page, but had **no
+    admin UI to set it at all** until now — `assets/settings-logo.js`, vanilla, opens `wp.media()`
+    the same way the post editor's featured-image picker does; `wp_enqueue_media()` is scoped to
+    just this screen via the hook suffix captured in `add_page()`).
+  - `Router::bootstrap_data()` now sends `logoUrl`/`companyName` to the React app, and
+    `App.js`'s topbar renders the logo (falling back to the "Site Surveys" text wordmark when unset,
+    same rule the other two pages already used) — this was the one surface with no logo support of
+    any kind before this session.
+  - The logo PNG has black outline text on a transparent background, so both the app's topbar and
+    the proposal page's header — both dark brand-colored bars — got a small white chip behind the
+    mark (`.pe-topbar__logo`, `.pp-logo`) or it would have been unreadable. The landing page's card
+    is already white, so it needed no change.
+  - Favicon uses WordPress's own Site Icon (`update_option( 'site_icon', $id )`) rather than a
+    custom setting — it's already changeable from Settings → General, produces every size WordPress
+    itself would want, and calling core's own `wp_site_icon()` was enough to add it to
+    `landing.php` and `proposal.php`, which — see their docblocks — deliberately skip `wp_head()`
+    and so print nothing here on their own; `app.php` already gets it for free via `wp_head()`.
+  - Verified locally end-to-end (both images downloaded from the live site, imported into the media
+    library, `logo_id`/`site_icon` set): logo renders correctly on the landing page, the survey app
+    topbar, the Settings page picker, and a real customer proposal page; favicon link tags present
+    on all three custom templates; media frame opens and reflects the custom "Choose a logo"/"Use
+    this image" labels. All 285 PHP assertions still green.
+  - **Still needed:** the same media import + `logo_id`/`site_icon` option-setting step against
+    *production* — this session only populated the local wp-env database. The code ships the
+    capability; someone still has to upload the two images there once 0.9.1 is deployed (or Aaron
+    can do it himself from Settings → Logo and Settings → General → Site Icon — no code access
+    needed either way).
 
 ### Dependency hygiene
 
