@@ -13,8 +13,8 @@
 		"env:clean": "wp-env clean all"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^11.13.0",
-		"@wordpress/scripts": "^34.1.0"
+		"@wordpress/env": "^11.15.0",
+		"@wordpress/scripts": "^34.2.0"
 	},
 	"overrides": {
 		"uuid": "^11.1.1",
